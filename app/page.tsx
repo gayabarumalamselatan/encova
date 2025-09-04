@@ -92,15 +92,16 @@ export default function EncoderApp() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex flex-row">
+          <div className="flex flex-row gap-3">
             <img
               src="images/logo.png"
               alt="Logo"
               className="w-20"
             />
-            <div>
+            <div className="flex flex-col justify-center">
               <h1 className="text-3xl font-bold text-gray-900">ASISGO ENCOVA</h1>
               <p className="text-gray-600 mt-1">Configure your video encoding parameters</p>
             </div>
