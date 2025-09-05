@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,14 +49,23 @@ export default function EncoderApp() {
     setOutputs(outputs.map((o) => (o.id === id ? { ...o, [field]: value } : o)))
   }
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    await fetch("/api/encoder/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inputUrl: "rtsp://192.168.1.104:1945/",
+        outputs: [
+          { url: "rtmp://127.0.0.1/live/stream" } 
+        ],
+      }),
+    })
     setEncoderStatus("running")
-    setLogs((prev) => [...prev, `[${new Date().toLocaleString()}] Encoding started`])
   }
 
-  const handleStop = () => {
+  const handleStop = async () => {
+    await fetch("/api/encoder/stop", { method: "POST" })
     setEncoderStatus("stopped")
-    setLogs((prev) => [...prev, `[${new Date().toLocaleString()}] Encoding stopped`])
   }
 
   const handleRestart = () => {
@@ -88,6 +97,17 @@ export default function EncoderApp() {
         return "bg-gray-500"
     }
   }
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const res = await fetch("/api/encoder/logs")
+      const data = await res.json()
+      setLogs(data.logs)
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [])
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
