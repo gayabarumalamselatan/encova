@@ -2,29 +2,81 @@ import { spawn, ChildProcessWithoutNullStreams } from "child_process"
 
 type EncoderStatus = "stopped" | "running" | "error"
 
+interface Camera {
+  id: number;
+  name: string;
+  sourceType: string;
+  url: string;
+  resolution: string;
+  fps: string;
+}
+
+interface Output {
+  id: number;
+  type: string;
+  url: string;
+  cameraMappings: number[];
+}
+
 class FFmpegManager {
   private process: ChildProcessWithoutNullStreams | null = null
   private logs: string[] = []
   private status: EncoderStatus = "stopped"
 
-  start(inputUrl: string, outputs: { type: string; url: string }[]) {
+  start(cameras: Camera[], outputs: Output[]) {
     if (this.process) {
       throw new Error("Encoder is already running")
     }
-    console.log(inputUrl)
-    // contoh command ffmpeg dasar
-    const args = [
-      "-i", inputUrl,
-      "-c:v", "libx264",
-      "-preset", "veryfast",
-      "-c:a", "aac",
-      "-f", "flv", outputs[0].url, 
-    ]
+
+    const args: string[] = [];
+
+    // Push each camera as an input stream
+    cameras.forEach(cam => {
+      args.push("-i", cam.url || "");
+    });
+
+    // Map outputs
+    outputs.forEach((out) => {
+      if (out.cameraMappings && out.cameraMappings.length > 0) {
+        const camId = out.cameraMappings[0];
+        const camIndex = cameras.findIndex(c => c.id === camId);
+        if (camIndex !== -1) {
+          args.push(
+            "-map", `${camIndex}:v`,
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-map", `${camIndex}:a?`,
+            "-c:a", "aac"
+          );
+
+          let format = "flv";
+          if (out.type === "dash") format = "dash";
+          if (out.type === "hls") format = "hls";
+          if (out.type === "file") format = "mp4";
+          if (out.type === "rtmp") format = "flv";
+
+          let finalUrl = out.url;
+          if (finalUrl.startsWith("rtmp://")) {
+            try {
+              const urlObj = new URL(finalUrl);
+              urlObj.hostname = "127.0.0.1";
+              finalUrl = urlObj.toString();
+            } catch (e) {
+              // fallback to original if parsing fails
+            }
+          }
+
+          args.push("-f", format, finalUrl);
+        }
+      }
+    });
+
+    console.log("Starting ffmpeg with args:", args.join(" "))
 
     this.process = spawn("ffmpeg", args)
 
     this.status = "running"
-    this.logs.push(`[${new Date().toISOString()}] Encoder started`)
+    this.logs.push(`[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`)
 
     this.process.stdout.on("data", (data) => {
       this.logs.push(data.toString())
@@ -50,9 +102,9 @@ class FFmpegManager {
     }
   }
 
-  restart(inputUrl: string, outputs: { type: string; url: string }[]) {
+  restart(cameras: Camera[], outputs: Output[]) {
     this.stop()
-    setTimeout(() => this.start(inputUrl, outputs), 1000)
+    setTimeout(() => this.start(cameras, outputs), 1000)
     this.logs.push(`[${new Date().toISOString()}] Encoder restarted`)
   }
 
