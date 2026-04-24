@@ -33,11 +33,12 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cameras, outputs, streamSettings } = body;
+    const { cameras, outputs, streamSettings, autostart } = body;
 
     const current = readSettings();
 
     writeSettings({
+      autostart: autostart ?? current.autostart,
       cameras: cameras ?? current.cameras,
       outputs: outputs ?? current.outputs,
       streamSettings: streamSettings ?? current.streamSettings,
