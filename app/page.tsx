@@ -7,7 +7,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Video, FileArchive, ArrowRight } from "lucide-react";
+import { Video, FileArchive, ArrowRight, BookOpen } from "lucide-react";
 
 const EncovaLandingPage = () => {
   const features = [
@@ -22,10 +22,18 @@ const EncovaLandingPage = () => {
     {
       title: "File Compress",
       description:
-        "Reduce video file size without significantly compromising quality using the latest codecs.",
+        "Compress various file formats efficiently while maintaining original structure and usability.",
       href: "/file-compress",
       icon: <FileArchive className="h-8 w-8 text-primary" />,
       tag: "Optimization",
+    },
+    {
+      title: "API Documentation",
+      description:
+        "Explore all compression API endpoints with live Try-it-out powered by Swagger UI.",
+      href: "/api-docs",
+      icon: <BookOpen className="h-8 w-8 text-primary" />,
+      tag: "Developer",
     },
   ];
 

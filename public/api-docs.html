@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Encova API Documentation</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"
+    />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: system-ui, sans-serif; }
+
+      /* Header bar */
+      .api-header {
+        background: #111827;
+        color: #fff;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .api-header .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .api-header .brand img {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+      }
+      .api-header .brand-text h1 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .api-header .brand-text p {
+        margin: 0;
+        font-size: 0.72rem;
+        color: #9ca3af;
+      }
+      .api-header a {
+        font-size: 0.82rem;
+        color: #9ca3af;
+        text-decoration: none;
+      }
+      .api-header a:hover { color: #fff; }
+
+      /* Hide default Swagger topbar */
+      .swagger-ui .topbar { display: none !important; }
+      /* Remove extra top margin */
+      .swagger-ui .information-container { padding-top: 16px; }
+    </style>
+  </head>
+  <body>
+
+    <!-- Header -->
+    <div class="api-header">
+      <div class="brand">
+        <img src="/images/logo.png" alt="Logo" />
+        <div class="brand-text">
+          <h1>Encova API Docs</h1>
+          <p>OpenAPI 3.0 · Compression Endpoints</p>
+        </div>
+      </div>
+      <a href="/">← Back to App</a>
+    </div>
+
+    <!-- Swagger UI container -->
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      SwaggerUIBundle({
+        url: "/api/docs/spec",
+        dom_id: "#swagger-ui",
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+        layout: "BaseLayout",
+        docExpansion: "list",
+        defaultModelsExpandDepth: 2,
+        tryItOutEnabled: true,
+      });
+    </script>
+  </body>
+</html>

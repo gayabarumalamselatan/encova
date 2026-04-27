@@ -64,12 +64,29 @@ const ALLOWED_MIME = [
   "application/pdf",
   "application/vnd.google-earth.kml+xml",
   "application/vnd.google-earth.kmz",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ];
-const ALLOWED_EXT = [".pdf", ".kml", ".kmz"];
+const ALLOWED_EXT = [".pdf", ".kml", ".kmz", ".docx", ".xlsx"];
+const OFFICE_EXT = new Set([".docx", ".xlsx"]);
 
 function isValidFile(file: File) {
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
   return ALLOWED_MIME.includes(file.type) || ALLOWED_EXT.includes(ext);
+}
+
+/** Returns which API endpoint handles this file. */
+function endpointFor(file: File): "/api/compress" | "/api/compress/office" {
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  return OFFICE_EXT.has(ext) ? "/api/compress/office" : "/api/compress";
+}
+
+/** Returns a human-readable engine label shown in the progress message. */
+function engineLabel(file: File): string {
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (OFFICE_EXT.has(ext)) return "LibreOffice";
+  if (ext === ".pdf") return "Ghostscript";
+  return "XML optimiser";
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -81,16 +98,14 @@ function StatusIcon({ status }: { status: Status }) {
       return <XCircle className="w-4 h-4 text-red-500" />;
     case "uploading":
     case "processing":
-      return (
-        <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-      );
+      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
     default:
       return <Clock className="w-4 h-4 text-gray-400" />;
   }
 }
 
 function statusVariant(
-  status: Status
+  status: Status,
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "completed":
@@ -148,8 +163,16 @@ function FileRow({
                   <span className="text-xs font-semibold text-green-600">
                     {fmtBytes(item.result.compressedSize)}
                   </span>
-                  <Badge variant="outline" className="text-green-600 border-green-300 text-[10px] px-1.5 py-0">
-                    -{savedPct(item.result.originalSize, item.result.compressedSize)}%
+                  <Badge
+                    variant="outline"
+                    className="text-green-600 border-green-300 text-[10px] px-1.5 py-0"
+                  >
+                    -
+                    {savedPct(
+                      item.result.originalSize,
+                      item.result.compressedSize,
+                    )}
+                    %
                   </Badge>
                 </>
               )}
@@ -159,13 +182,19 @@ function FileRow({
           {/* Right controls */}
           <div className="flex items-center gap-2 shrink-0">
             <StatusIcon status={item.status} />
-            <Badge variant={statusVariant(item.status)} className="capitalize text-xs">
+            <Badge
+              variant={statusVariant(item.status)}
+              className="capitalize text-xs"
+            >
               {statusLabel(item.status)}
             </Badge>
 
             {item.status === "completed" && item.result && (
               <Button size="sm" asChild className="h-7 px-3 text-xs">
-                <a href={item.result.downloadUrl} download={item.result.filename}>
+                <a
+                  href={item.result.downloadUrl}
+                  download={item.result.filename}
+                >
                   <Download className="w-3 h-3 mr-1" />
                   Download
                 </a>
@@ -190,7 +219,7 @@ function FileRow({
           <div className="mt-3">
             <Progress value={item.progress} className="h-1.5" />
             <p className="text-xs text-gray-400 mt-1">
-              {item.status === "uploading" ? "Uploading…" : "Compressing with Ghostscript…"}
+              {item.status === "uploading" ? "Uploading…" : `Compressing...`}
             </p>
           </div>
         )}
@@ -237,14 +266,14 @@ export default function Compress() {
       setDragging(false);
       addFiles(e.dataTransfer.files);
     },
-    [addFiles]
+    [addFiles],
   );
 
-  // Compress one file
+  // Compress one file — routes to the correct endpoint based on file type
   const compressOne = async (item: FileItem) => {
     const patch = (p: Partial<FileItem>) =>
       setFiles((prev) =>
-        prev.map((f) => (f.id === item.id ? { ...f, ...p } : f))
+        prev.map((f) => (f.id === item.id ? { ...f, ...p } : f)),
       );
 
     patch({ status: "uploading", progress: 15 });
@@ -257,11 +286,19 @@ export default function Compress() {
 
     try {
       patch({ status: "processing" });
-      const fd = new FormData();
-      fd.append("file", item.file);
-      fd.append("level", level);
 
-      const res = await fetch("/api/compress", { method: "POST", body: fd });
+      const endpoint = endpointFor(item.file);
+      const fd = new FormData();
+
+      if (endpoint === "/api/compress/office") {
+        fd.append("files", item.file);
+        fd.append("compressionLevel", level);
+      } else {
+        fd.append("file", item.file);
+        fd.append("level", level);
+      }
+
+      const res = await fetch(endpoint, { method: "POST", body: fd });
       clearInterval(ticker);
       const data = await res.json();
 
@@ -273,7 +310,21 @@ export default function Compress() {
         });
         return;
       }
-      patch({ status: "completed", progress: 100, result: data });
+
+      // Normalise — office endpoint wraps in { results: [...] }
+      const result: CompressResult =
+        endpoint === "/api/compress/office" ? data.results?.[0] : data;
+
+      if (!result || result.downloadUrl === undefined) {
+        patch({
+          status: "failed",
+          progress: 0,
+          error: "Unexpected server response",
+        });
+        return;
+      }
+
+      patch({ status: "completed", progress: 100, result });
     } catch (e: any) {
       clearInterval(ticker);
       patch({
@@ -297,23 +348,22 @@ export default function Compress() {
   const completed = files.filter((f) => f.status === "completed");
   const totalOrig = completed.reduce(
     (s, f) => s + (f.result?.originalSize ?? 0),
-    0
+    0,
   );
   const totalComp = completed.reduce(
     (s, f) => s + (f.result?.compressedSize ?? 0),
-    0
+    0,
   );
 
   const levelConfig: Record<Level, { label: string; hint: string }> = {
-    low:    { label: "Low",    hint: "Screen quality · Smallest size" },
+    low: { label: "Low", hint: "Screen quality · Smallest size" },
     medium: { label: "Medium", hint: "eBook quality · Balanced" },
-    high:   { label: "High",   hint: "Printer quality · Best clarity" },
+    high: { label: "High", hint: "Printer quality · Best clarity" },
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-
         {/* Back button */}
         <Button
           variant="outline"
@@ -332,7 +382,8 @@ export default function Compress() {
               ASISGO File Compress
             </h1>
             <p className="text-gray-600 mt-0.5">
-              Compress PDF, KML and KMZ files — processed locally, no data sent to third parties
+              Compress PDF, KML, KMZ, DOCX and XLSX files — processed locally,
+              no data sent to third parties
             </p>
           </div>
         </div>
@@ -340,7 +391,6 @@ export default function Compress() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* ── Left / main column ── */}
           <div className="lg:col-span-2 space-y-4">
-
             {/* Compression level */}
             <Card>
               <CardHeader className="pb-3">
@@ -388,7 +438,10 @@ export default function Compress() {
                   : "border-border bg-white hover:border-primary/50 hover:bg-primary/[0.02]"
               }`}
               onDrop={onDrop}
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
               onDragLeave={() => setDragging(false)}
               onClick={() => inputRef.current?.click()}
             >
@@ -397,7 +450,7 @@ export default function Compress() {
                   ref={inputRef}
                   type="file"
                   multiple
-                  accept=".pdf,.kml,.kmz,application/pdf,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz"
+                  accept=".pdf,.kml,.kmz,.docx,.xlsx,application/pdf,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   onChange={(e) => e.target.files && addFiles(e.target.files)}
                 />
@@ -406,7 +459,9 @@ export default function Compress() {
                 </div>
                 <div className="text-center">
                   <p className="font-semibold text-gray-700">
-                    {dragging ? "Release to add files" : "Drop files here or click to browse"}
+                    {dragging
+                      ? "Release to add files"
+                      : "Drop files here or click to browse"}
                   </p>
                   <p className="text-sm text-gray-400 mt-1">
                     Supported:&nbsp;
@@ -415,6 +470,10 @@ export default function Compress() {
                     <span className="text-primary font-medium">KML</span>
                     {" · "}
                     <span className="text-primary font-medium">KMZ</span>
+                    {" · "}
+                    <span className="text-primary font-medium">DOCX</span>
+                    {" · "}
+                    <span className="text-primary font-medium">XLSX</span>
                   </p>
                 </div>
               </CardContent>
@@ -459,7 +518,8 @@ export default function Compress() {
                           ) : (
                             <>
                               <Zap className="w-3.5 h-3.5 mr-1" />
-                              Compress {pendingCount} file{pendingCount > 1 ? "s" : ""}
+                              Compress {pendingCount} file
+                              {pendingCount > 1 ? "s" : ""}
                             </>
                           )}
                         </Button>
@@ -485,7 +545,6 @@ export default function Compress() {
 
           {/* ── Right sidebar ── */}
           <div className="space-y-4">
-
             {/* Summary */}
             <Card>
               <CardHeader className="pb-3">
@@ -504,7 +563,8 @@ export default function Compress() {
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                       <span className="text-sm font-medium text-gray-700">
-                        {completed.length} file{completed.length > 1 ? "s" : ""} done
+                        {completed.length} file{completed.length > 1 ? "s" : ""}{" "}
+                        done
                       </span>
                     </div>
                     <div className="space-y-3">
@@ -554,10 +614,20 @@ export default function Compress() {
                 <CardTitle className="text-base">How it works</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-gray-600">
-                <p>1. Drop <strong>PDF</strong>, <strong>KML</strong>, or <strong>KMZ</strong> files above.</p>
-                <p>2. Choose a <strong>compression level</strong>.</p>
-                <p>3. Click <strong>Compress</strong>.</p>
-                <p className="text-gray-400">PDF → Ghostscript · KML/KMZ → XML minification</p>
+                <p>
+                  1. Drop <strong>PDF</strong>, <strong>KML</strong>,{" "}
+                  <strong>KMZ</strong>, <strong>DOCX</strong>, or{" "}
+                  <strong>XLSX</strong> files above.
+                </p>
+                <p>
+                  2. Choose a <strong>compression level</strong>.
+                </p>
+                <p>
+                  3. Click <strong>Compress</strong>.
+                </p>
+                <p className="text-gray-400">
+                  PDF → Ghostscript · KML/KMZ → XML · DOCX/XLSX → LibreOffice
+                </p>
                 <p>4. Download your compressed file.</p>
               </CardContent>
             </Card>

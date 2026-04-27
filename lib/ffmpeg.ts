@@ -1,6 +1,6 @@
-import { spawn, ChildProcessWithoutNullStreams } from "child_process"
+import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 
-type EncoderStatus = "stopped" | "running" | "error"
+type EncoderStatus = "stopped" | "running" | "error";
 
 interface Camera {
   id: number;
@@ -19,19 +19,19 @@ interface Output {
 }
 
 class FFmpegManager {
-  private process: ChildProcessWithoutNullStreams | null = null
-  private logs: string[] = []
-  private status: EncoderStatus = "stopped"
+  private process: ChildProcessWithoutNullStreams | null = null;
+  private logs: string[] = [];
+  private status: EncoderStatus = "stopped";
 
   start(cameras: Camera[], outputs: Output[]) {
     if (this.process) {
-      throw new Error("Encoder is already running")
+      throw new Error("Encoder is already running");
     }
 
     const args: string[] = [];
 
     // Push each camera as an input stream
-    cameras.forEach(cam => {
+    cameras.forEach((cam) => {
       args.push("-i", cam.url || "");
     });
 
@@ -39,14 +39,19 @@ class FFmpegManager {
     outputs.forEach((out) => {
       if (out.cameraMappings && out.cameraMappings.length > 0) {
         const camId = out.cameraMappings[0];
-        const camIndex = cameras.findIndex(c => c.id === camId);
+        const camIndex = cameras.findIndex((c) => c.id === camId);
         if (camIndex !== -1) {
           args.push(
-            "-map", `${camIndex}:v`,
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-map", `${camIndex}:a?`,
-            "-c:a", "aac"
+            "-map",
+            `${camIndex}:v`,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-map",
+            `${camIndex}:a?`,
+            "-c:a",
+            "aac",
           );
 
           let format = "flv";
@@ -71,50 +76,54 @@ class FFmpegManager {
       }
     });
 
-    console.log("Starting ffmpeg with args:", args.join(" "))
+    console.log("Starting ffmpeg with args:", args.join(" "));
 
-    this.process = spawn("ffmpeg", args)
+    this.process = spawn("ffmpeg", args);
 
-    this.status = "running"
-    this.logs.push(`[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`)
+    this.status = "running";
+    this.logs.push(
+      `[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`,
+    );
 
     this.process.stdout.on("data", (data) => {
-      this.logs.push(data.toString())
-    })
+      this.logs.push(data.toString());
+    });
 
     this.process.stderr.on("data", (data) => {
-      this.logs.push(data.toString())
-    })
+      this.logs.push(data.toString());
+    });
 
     this.process.on("close", (code) => {
-      this.logs.push(`[${new Date().toISOString()}] Encoder stopped with code ${code}`)
-      this.status = "stopped"
-      this.process = null
-    })
+      this.logs.push(
+        `[${new Date().toISOString()}] Encoder stopped with code ${code}`,
+      );
+      this.status = "stopped";
+      this.process = null;
+    });
   }
 
   stop() {
     if (this.process) {
-      this.process.kill("SIGTERM")
-      this.process = null
-      this.status = "stopped"
-      this.logs.push(`[${new Date().toISOString()}] Encoder stopped manually`)
+      this.process.kill("SIGTERM");
+      this.process = null;
+      this.status = "stopped";
+      this.logs.push(`[${new Date().toISOString()}] Encoder stopped manually`);
     }
   }
 
   restart(cameras: Camera[], outputs: Output[]) {
-    this.stop()
-    setTimeout(() => this.start(cameras, outputs), 1000)
-    this.logs.push(`[${new Date().toISOString()}] Encoder restarted`)
+    this.stop();
+    setTimeout(() => this.start(cameras, outputs), 1000);
+    this.logs.push(`[${new Date().toISOString()}] Encoder restarted`);
   }
 
   getStatus() {
-    return this.status
+    return this.status;
   }
 
   getLogs() {
-    return this.logs.slice(-200) // limit last 200 logs
+    return this.logs.slice(-200); // limit last 200 logs
   }
 }
 
-export const ffmpegManager = new FFmpegManager()
+export const ffmpegManager = new FFmpegManager();
