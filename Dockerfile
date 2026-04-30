@@ -1,0 +1,151 @@
+# =============================================================================
+# Stage 1: System Dependencies Installer
+# =============================================================================
+# We use a dedicated stage to install heavy system tools (LibreOffice, Ghostscript,
+# FFmpeg, MediaMTX). This layer is cached separately from the app code, so
+# system deps are only re-installed when this stage changes.
+FROM node:22-bookworm-slim AS system-deps
+
+# Avoid interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system-level dependencies with idempotent checks via apt-get
+# (apt-get is idempotent by default; re-running is always safe)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # LibreOffice (for DOCX/XLSX compression)
+    libreoffice \
+    # Ghostscript (for PDF processing)
+    ghostscript \
+    # FFmpeg (for CCTV encoding/streaming)
+    ffmpeg \
+    # Required utilities
+    curl \
+    ca-certificates \
+    wget \
+    unzip \
+    # LibreOffice runtime deps
+    fonts-liberation \
+    fontconfig \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Install MediaMTX ---
+# MediaMTX is not in apt repos; download the latest release binary.
+# The script checks if it's already installed before downloading (idempotent).
+ARG MEDIAMTX_VERSION=v1.9.1
+ARG MEDIAMTX_ARCH=linux_amd64
+
+RUN if ! command -v mediamtx > /dev/null 2>&1; then \
+        echo "Installing MediaMTX ${MEDIAMTX_VERSION}..." && \
+        wget -qO /tmp/mediamtx.tar.gz \
+            "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_${MEDIAMTX_ARCH}.tar.gz" && \
+        tar -xzf /tmp/mediamtx.tar.gz -C /usr/local/bin mediamtx && \
+        chmod +x /usr/local/bin/mediamtx && \
+        rm /tmp/mediamtx.tar.gz && \
+        echo "MediaMTX installed successfully."; \
+    else \
+        echo "MediaMTX already installed, skipping."; \
+    fi
+
+# =============================================================================
+# Stage 2: Node.js Dependency Installer (deps)
+# =============================================================================
+# A clean node image for installing npm packages. Separating this from the
+# builder avoids re-running npm install when only source code changes.
+FROM node:22-bookworm-slim AS deps
+
+WORKDIR /app
+
+# Copy only manifest files first to leverage Docker layer cache.
+# npm install will only re-run when package.json or package-lock.json changes.
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including devDeps needed for the build).
+# --legacy-peer-deps is required by this project.
+RUN npm install --legacy-peer-deps
+
+# =============================================================================
+# Stage 3: Next.js Builder
+# =============================================================================
+FROM node:22-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Copy node_modules from the deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy the full source tree
+COPY . .
+
+# Set NODE_ENV to production for an optimized build
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build the Next.js app
+RUN npm run build
+
+# =============================================================================
+# Stage 4: Production Runner
+# =============================================================================
+# Final image: merge system deps + Next.js standalone output for the smallest
+# possible production image.
+FROM node:22-bookworm-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# ── Copy system binaries from the system-deps stage ──────────────────────────
+# This brings in LibreOffice, Ghostscript, FFmpeg, and MediaMTX without
+# re-running any apt-get install in the final image.
+COPY --from=system-deps /usr/bin/libreoffice       /usr/bin/libreoffice
+COPY --from=system-deps /usr/bin/soffice           /usr/bin/soffice
+COPY --from=system-deps /usr/bin/gs                /usr/bin/gs
+COPY --from=system-deps /usr/bin/ffmpeg            /usr/bin/ffmpeg
+COPY --from=system-deps /usr/bin/ffprobe           /usr/bin/ffprobe
+COPY --from=system-deps /usr/local/bin/mediamtx    /usr/local/bin/mediamtx
+
+# Copy shared library directories that LibreOffice / GS need at runtime
+COPY --from=system-deps /usr/lib/libreoffice        /usr/lib/libreoffice
+COPY --from=system-deps /usr/share/libreoffice      /usr/share/libreoffice
+COPY --from=system-deps /usr/lib/x86_64-linux-gnu  /usr/lib/x86_64-linux-gnu
+COPY --from=system-deps /usr/share/ghostscript      /usr/share/ghostscript
+COPY --from=system-deps /usr/share/fonts            /usr/share/fonts
+COPY --from=system-deps /etc/fonts                  /etc/fonts
+
+# ── Copy Next.js build output ─────────────────────────────────────────────────
+# .next/standalone contains a self-contained Node server (no node_modules needed).
+COPY --from=builder /app/public              ./public
+COPY --from=builder /app/.next/standalone    ./
+COPY --from=builder /app/.next/static        ./.next/static
+
+# Copy MediaMTX default config and application settings
+COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+COPY settings.json ./settings.json
+
+# Copy the RTMP server helper script
+COPY rtmp-server.js ./rtmp-server.js
+
+# ── Create a non-root user for security ───────────────────────────────────────
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Expose Next.js port
+EXPOSE 3000
+
+# Expose MediaMTX / RTMP / HLS ports
+# 8554 = RTSP, 1935 = RTMP, 8888 = HLS (MediaMTX defaults)
+EXPOSE 8554 1935 8888 8000
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+# Use a startup script (created below via COPY) so we can start both
+# the Next.js server and MediaMTX as background processes.
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+
+CMD ["sh", "./docker-entrypoint.sh"]

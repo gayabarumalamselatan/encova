@@ -1,0 +1,65 @@
+services:
+  encova:
+    image: encova:latest
+    # Uncomment the 'build' block to build locally instead of pulling from registry
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    container_name: encova-app
+    restart: unless-stopped
+
+    ports:
+      # Next.js application
+      - "3000:3000"
+      # MediaMTX: RTSP
+      - "8554:8554"
+      # MediaMTX: RTMP ingest (used by FFmpeg / node-media-server)
+      - "1935:1935"
+      # MediaMTX: HLS / WebRTC HTTP API
+      - "8888:8888"
+      # node-media-server HTTP API
+      - "8000:8000"
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # ── Add your application secrets below. ──────────────────────────────
+      # It is recommended to use a .env file and reference it with env_file.
+      # DATABASE_URL: postgres://user:pass@host:5432/encova
+      # NEXTAUTH_SECRET: your-secret-here
+      # NEXTAUTH_URL: http://localhost:3000
+
+    # Uncomment to load secrets from a .env file (kept out of version control)
+    # env_file:
+    #   - .env
+
+    volumes:
+      # Persist settings.json so CCTV camera config survives container restarts
+      - ./settings.json:/app/settings.json
+      # Optional: persist LibreOffice user profile to avoid re-init on every run
+      - libreoffice-profile:/home/nextjs/.config/libreoffice
+
+    # Resource limits (tune based on your server capacity)
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  libreoffice-profile:
+    driver: local
