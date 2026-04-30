@@ -135,8 +135,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --chown=nextjs:nodejs settings.json     ./settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 
-# Ensure all files in /app are owned by nextjs (safety check)
-RUN chown -R nextjs:nodejs /app
+# ── Create a non-root user for security ───────────────────────────────────────
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs \
+    && chown -R nextjs:nodejs /app
 
 USER nextjs
 
