@@ -26,4 +26,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /lib/generated/prisma
-settings.json
+# settings.json is intentionally NOT ignored — it is committed and baked into the Docker image.

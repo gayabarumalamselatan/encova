@@ -36,10 +36,13 @@ services:
     #   - .env
 
     volumes:
-      # Persist settings.json so CCTV camera config survives container restarts
-      - ./settings.json:/app/settings.json
-      # Optional: persist LibreOffice user profile to avoid re-init on every run
+      # LibreOffice user profile persists across restarts (avoids slow re-init)
       - libreoffice-profile:/home/nextjs/.config/libreoffice
+      # ── CCTV settings ──────────────────────────────────────────────────────
+      # To use your real camera config, copy settings.json to the server first:
+      #   scp settings.json user@server-ip:~/encova/settings.json
+      # Then uncomment the line below and restart:
+      # - ./settings.json:/app/settings.json
 
     # Resource limits (tune based on your server capacity)
     deploy:

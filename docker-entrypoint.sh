@@ -11,21 +11,6 @@ echo "============================================"
 echo "  Encova Production Container Starting..."
 echo "============================================"
 
-# ── settings.json bootstrap ───────────────────────────────────────────────────
-# If a real settings.json is NOT volume-mounted (e.g. first run or local test),
-# fall back to the safe default template baked into the image.
-# When docker-compose mounts ./settings.json:/app/settings.json the real file
-# will take precedence and this block is skipped.
-if [ ! -f /app/settings.json ]; then
-    echo "[config] No settings.json found — copying default template..."
-    cp /app/settings.default.json /app/settings.json
-    echo "[config] settings.json created from default template."
-    echo "[config] WARNING: Using placeholder camera config. Mount your real"
-    echo "[config]          settings.json via docker-compose volume to use live CCTV."
-else
-    echo "[config] settings.json found (volume-mounted or pre-existing)."
-fi
-
 # ── Verify system dependencies ────────────────────────────────────────────────
 echo "[check] LibreOffice  : $(libreoffice --version 2>/dev/null || echo 'NOT FOUND')"
 echo "[check] Ghostscript  : $(gs --version 2>/dev/null || echo 'NOT FOUND')"

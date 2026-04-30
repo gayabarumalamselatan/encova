@@ -122,14 +122,9 @@ COPY --from=builder /app/public              ./public
 COPY --from=builder /app/.next/standalone    ./
 COPY --from=builder /app/.next/static        ./.next/static
 
-# Copy the safe settings template (no real camera IPs).
-# The real settings.json (with actual CCTV credentials) is mounted at runtime
-# via the docker-compose.yml volume: ./settings.json:/app/settings.json
-# The entrypoint will fall back to this default if no volume is mounted.
-COPY settings.default.json ./settings.default.json
-
-# Copy the RTMP server helper script
-COPY rtmp-server.js ./rtmp-server.js
+# Copy CCTV settings and the RTMP server helper script directly into the image.
+COPY settings.json     ./settings.json
+COPY rtmp-server.js    ./rtmp-server.js
 
 # ── Create a non-root user for security ───────────────────────────────────────
 RUN groupadd --system --gid 1001 nodejs \

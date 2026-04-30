@@ -1,0 +1,43 @@
+{
+  "autostart": false,
+  "cameras": [
+    {
+      "id": 1,
+      "name": "Ruang meeting",
+      "sourceType": "rtsp",
+      "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch1/0",
+      "resolution": "1920x1080",
+      "fps": "60",
+      "enabled": true
+    }
+  ],
+  "outputs": [
+    {
+      "id": 1,
+      "type": "rtmp",
+      "url": "rtmp://127.0.0.1/live/stream",
+      "enabled": true,
+      "cameraMappings": [
+        1
+      ]
+    }
+  ],
+  "streamSettings": {
+    "buffer": "1024",
+    "timeout": "10",
+    "reconnect": "5",
+    "videoCodec": "h264",
+    "preset": "fast",
+    "bitrate": "2000k",
+    "outputResolution": "1280x720",
+    "keyframe": "2",
+    "hardwareAccel": false,
+    "twoPass": false,
+    "audioCodec": "aac",
+    "audioBitrate": "128k",
+    "sampleRate": "44100",
+    "channels": "2",
+    "audioFilter": false,
+    "noiseReduction": false
+  }
+}
