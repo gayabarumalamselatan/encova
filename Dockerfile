@@ -87,8 +87,6 @@ RUN npm run build
 # =============================================================================
 # Stage 4: Production Runner
 # =============================================================================
-# Final image: merge system deps + Next.js standalone output for the smallest
-# possible production image.
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
@@ -98,9 +96,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# ── Copy system binaries from the system-deps stage ──────────────────────────
-# This brings in LibreOffice, Ghostscript, FFmpeg, and MediaMTX without
-# re-running any apt-get install in the final image.
+# ── 1. Create a non-root user FIRST ──────────────────────────────────────────
+# This must happen before any COPY --chown commands.
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
+
+# ── 2. Copy system binaries from the system-deps stage ──────────────────────────
 COPY --from=system-deps /usr/bin/libreoffice       /usr/bin/libreoffice
 COPY --from=system-deps /usr/bin/soffice           /usr/bin/soffice
 COPY --from=system-deps /usr/bin/gs                /usr/bin/gs
@@ -108,7 +109,7 @@ COPY --from=system-deps /usr/bin/ffmpeg            /usr/bin/ffmpeg
 COPY --from=system-deps /usr/bin/ffprobe           /usr/bin/ffprobe
 COPY --from=system-deps /usr/local/bin/mediamtx    /usr/local/bin/mediamtx
 
-# Copy shared library directories that LibreOffice / GS need at runtime
+# Copy shared library directories
 COPY --from=system-deps /usr/lib/libreoffice        /usr/lib/libreoffice
 COPY --from=system-deps /usr/share/libreoffice      /usr/share/libreoffice
 COPY --from=system-deps /usr/lib/x86_64-linux-gnu  /usr/lib/x86_64-linux-gnu
@@ -116,29 +117,19 @@ COPY --from=system-deps /usr/share/ghostscript      /usr/share/ghostscript
 COPY --from=system-deps /usr/share/fonts            /usr/share/fonts
 COPY --from=system-deps /etc/fonts                  /etc/fonts
 
-# ── Copy Next.js build output ─────────────────────────────────────────────────
+# ── 3. Copy Next.js build output ──────────────────────────────────────────────
 # In Next.js standalone mode, server.js is the entrypoint. 
 # It expects 'public' and '.next/static' to be in the same directory.
-# We use --chown directly to avoid permission issues with the non-root user.
-
-# 1. Copy the standalone server files
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-
-# 2. Copy the static assets (CSS, JS, etc.) into the .next folder
-# Next.js standalone looks for static files in .next/static
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# 3. Copy the public folder (Images, Favicon, etc.)
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# 4. Copy application settings and scripts
+# ── 4. Copy application settings and scripts ──────────────────────────────────
 COPY --chown=nextjs:nodejs settings.json     ./settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 
-# ── Create a non-root user for security ───────────────────────────────────────
-RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs \
-    && chown -R nextjs:nodejs /app
+# Ensure all files in /app are owned by nextjs
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
