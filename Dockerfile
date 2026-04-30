@@ -117,19 +117,26 @@ COPY --from=system-deps /usr/share/fonts            /usr/share/fonts
 COPY --from=system-deps /etc/fonts                  /etc/fonts
 
 # ── Copy Next.js build output ─────────────────────────────────────────────────
-# .next/standalone contains a self-contained Node server (no node_modules needed).
-COPY --from=builder /app/public              ./public
-COPY --from=builder /app/.next/standalone    ./
-COPY --from=builder /app/.next/static        ./.next/static
+# In Next.js standalone mode, server.js is the entrypoint. 
+# It expects 'public' and '.next/static' to be in the same directory.
+# We use --chown directly to avoid permission issues with the non-root user.
 
-# Copy CCTV settings and the RTMP server helper script directly into the image.
-COPY settings.json     ./settings.json
-COPY rtmp-server.js    ./rtmp-server.js
+# 1. Copy the standalone server files
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 
-# ── Create a non-root user for security ───────────────────────────────────────
-RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs \
-    && chown -R nextjs:nodejs /app
+# 2. Copy the static assets (CSS, JS, etc.) into the .next folder
+# Next.js standalone looks for static files in .next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# 3. Copy the public folder (Images, Favicon, etc.)
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# 4. Copy application settings and scripts
+COPY --chown=nextjs:nodejs settings.json     ./settings.json
+COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
+
+# Ensure all files in /app are owned by nextjs (safety check)
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
