@@ -15,7 +15,7 @@ import { compressKmlContent } from "./kml";
 export async function compressKmz(
   inputPath: string,
   outputPath: string,
-  options: CompressionOptions
+  options: CompressionOptions,
 ): Promise<void> {
   const zip = new AdmZip(inputPath);
 

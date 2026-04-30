@@ -1,21 +1,21 @@
-import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
+import type { Metadata } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import { Analytics } from "@vercel/analytics/next";
+// import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Asisgo | Encova',
-  description: 'Asisgo Encova',
+  title: "Asisgo | Encova",
+  description: "Asisgo Encova",
   icons: {
-    icon: '/images/logo.png'
-  }
-}
+    icon: "/images/logo.png",
+  },
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
@@ -24,5 +24,5 @@ export default function RootLayout({
         <Analytics />
       </body>
     </html>
-  )
+  );
 }
