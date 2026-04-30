@@ -122,9 +122,11 @@ COPY --from=builder /app/public              ./public
 COPY --from=builder /app/.next/standalone    ./
 COPY --from=builder /app/.next/static        ./.next/static
 
-# Copy MediaMTX default config and application settings
-COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY settings.json ./settings.json
+# Copy the safe settings template (no real camera IPs).
+# The real settings.json (with actual CCTV credentials) is mounted at runtime
+# via the docker-compose.yml volume: ./settings.json:/app/settings.json
+# The entrypoint will fall back to this default if no volume is mounted.
+COPY settings.default.json ./settings.default.json
 
 # Copy the RTMP server helper script
 COPY rtmp-server.js ./rtmp-server.js
