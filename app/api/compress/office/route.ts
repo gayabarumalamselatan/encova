@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { compressOffice, sanitizeFilename } from "@/lib/compress/office";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** System temp dir — avoids importing 'os' which Next.js bundler can drop. */
+/** Robust temp dir helper for Windows/Linux/Docker */
 function tempDir(): string {
   return process.env.TEMP ?? process.env.TMP ?? process.env.TMPDIR ?? "/tmp";
 }
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
         continue;
       }
 
-      const uniqueId = crypto.randomUUID();
+      const uniqueId = randomUUID();
 
       // Save upload to temp
       const tempInput = path.join(tmp, `encova_${uniqueId}${ext}`);

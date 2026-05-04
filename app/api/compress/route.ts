@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "node:fs/promises";
-import { existsSync, statSync, unlinkSync } from "node:fs";
+import { writeFile, mkdir, unlink } from "node:fs/promises";
+import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { compressOffice, sanitizeFilename } from "@/lib/compress/office";
 import { compressionHandlers, mimeTypeMap, extensionMap } from "@/lib/compress";
 import type { CompressionOptions } from "@/lib/compress/types";
 
@@ -17,10 +19,7 @@ function tempDir(): string {
 
 /** Replace spaces and unsafe chars so the output URL doesn't need encoding. */
 function sanitize(name: string): string {
-  return name
-    .replace(/[^a-zA-Z0-9._\-]/g, "_")
-    .replace(/_{2,}/g, "_")
-    .slice(0, 200);
+  return sanitizeFilename(name);
 }
 
 // ── POST /api/compress ────────────────────────────────────────────────────────
@@ -38,6 +37,8 @@ export async function POST(req: Request) {
     // ── Detect handler ──────────────────────────────────────────────────────────
     const ext = path.extname(file.name).toLowerCase();
     const fileType = mimeTypeMap[file.type] ?? extensionMap[ext];
+
+    console.log(`Processing file: ${file.name}, type: ${fileType}`);
 
     if (!fileType) {
       return NextResponse.json(
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(bytes);
     const originalSize = buffer.length;
 
-    const uniqueId = crypto.randomUUID();
+    const uniqueId = randomUUID();
     tempInputPath = path.join(tempDir(), `encova_${uniqueId}${ext}`);
     await writeFile(tempInputPath, buffer);
 

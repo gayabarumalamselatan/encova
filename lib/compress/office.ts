@@ -1,9 +1,13 @@
-import { exec } from "child_process";
-import { existsSync, readdirSync, copyFileSync, unlinkSync } from "fs";
-import { mkdir } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
-import { rm } from "fs/promises";
+import { exec } from "node:child_process";
+import { existsSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+
+/** Robust temp dir helper for Windows/Linux/Docker */
+function tempDir(): string {
+  return process.env.TEMP ?? process.env.TMP ?? process.env.TMPDIR ?? "/tmp";
+}
 
 
 // ── Locate soffice ────────────────────────────────────────────────────────────
@@ -76,10 +80,8 @@ export async function compressOffice(
     await mkdir(outputDir, { recursive: true });
   }
 
-  // Use a unique user profile in /tmp for each conversion.
-  // This bypasses permission issues with the default home directory in Docker
-  // and allows concurrent LibreOffice instances to run safely.
-  const userProfileDir = path.join(os.tmpdir(), `libreoffice_profile_${randomUUID()}`);
+  // Use a unique user profile in temp for each conversion.
+  const userProfileDir = path.join(tempDir(), `libreoffice_profile_${randomUUID()}`);
   const userProfileUri = `file://${userProfileDir.replace(/\\/g, "/")}`;
 
   const cmd = `${soffice} --headless "-env:UserInstallation=${userProfileUri}" --convert-to ${format} "${inputPath}" --outdir "${outputDir}"`;
