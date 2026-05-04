@@ -38,6 +38,7 @@ services:
     volumes:
       # LibreOffice user profile persists across restarts (avoids slow re-init)
       - libreoffice-profile:/home/nextjs/.config/libreoffice
+      - ./mediamtx.yml:/mediamtx.yml
       # ── CCTV settings ──────────────────────────────────────────────────────
       # To use your real camera config, copy settings.json to the server first:
       #   scp settings.json user@server-ip:~/encova/settings.json

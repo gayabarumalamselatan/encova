@@ -101,21 +101,22 @@ ENV HOSTNAME="0.0.0.0"
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
 
-# ── 2. Copy system binaries from the system-deps stage ──────────────────────────
-COPY --from=system-deps /usr/bin/libreoffice       /usr/bin/libreoffice
-COPY --from=system-deps /usr/bin/soffice           /usr/bin/soffice
-COPY --from=system-deps /usr/bin/gs                /usr/bin/gs
-COPY --from=system-deps /usr/bin/ffmpeg            /usr/bin/ffmpeg
-COPY --from=system-deps /usr/bin/ffprobe           /usr/bin/ffprobe
-COPY --from=system-deps /usr/local/bin/mediamtx    /usr/local/bin/mediamtx
+# ── 2. Install Runtime Dependencies ──────────────────────────────────────────
+# We install these directly in the runner stage to ensure all shared libraries,
+# symlinks (like libblas.so.3), and configurations are correctly set up.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libreoffice \
+    ghostscript \
+    fonts-liberation \
+    fontconfig \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy shared library directories
-COPY --from=system-deps /usr/lib/libreoffice        /usr/lib/libreoffice
-COPY --from=system-deps /usr/share/libreoffice      /usr/share/libreoffice
-COPY --from=system-deps /usr/lib/x86_64-linux-gnu  /usr/lib/x86_64-linux-gnu
-COPY --from=system-deps /usr/share/ghostscript      /usr/share/ghostscript
-COPY --from=system-deps /usr/share/fonts            /usr/share/fonts
-COPY --from=system-deps /etc/fonts                  /etc/fonts
+# Copy MediaMTX (it's a standalone binary, safe to copy)
+COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+
 
 # ── 3. Copy Next.js build output ──────────────────────────────────────────────
 # In Next.js standalone mode, server.js is the entrypoint. 
