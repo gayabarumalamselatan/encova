@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync, statSync, unlinkSync } from "fs";
-import path from "path";
-import os from "os";
+import { writeFile, mkdir } from "node:fs/promises";
+import { existsSync, statSync, unlinkSync } from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { compressionHandlers, mimeTypeMap, extensionMap } from "@/lib/compress";
 import type { CompressionOptions } from "@/lib/compress/types";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let tempInputPath = "";

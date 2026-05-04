@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import { existsSync, statSync } from "fs";
-import path from "path";
-import os from "os";
+import { writeFile, mkdir, unlink } from "node:fs/promises";
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { compressOffice, sanitizeFilename } from "@/lib/compress/office";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // ── Allowed types ─────────────────────────────────────────────────────────────
 const ALLOWED_EXTENSIONS = new Set([".docx", ".xlsx"]);
