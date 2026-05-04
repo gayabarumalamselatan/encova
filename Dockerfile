@@ -98,8 +98,19 @@ ENV HOSTNAME="0.0.0.0"
 
 # ── 1. Create a non-root user FIRST ──────────────────────────────────────────
 # This must happen before any COPY --chown commands.
+# We use --create-home because LibreOffice needs a writable home directory
+# for its user profile and cache (.cache/dconf).
 RUN groupadd --system --gid 1001 nodejs \
-    && useradd --system --uid 1001 --gid nodejs nextjs
+    && useradd --system --uid 1001 --gid nodejs --create-home nextjs
+
+# Ensure the home directory and its critical subdirectories are writable.
+# This fixes 'dconf' and other system library permission errors.
+RUN mkdir -p /home/nextjs/.config /home/nextjs/.cache \
+    && chown -R nextjs:nodejs /home/nextjs
+
+ENV HOME=/home/nextjs
+
+
 
 # ── 2. Install Runtime Dependencies ──────────────────────────────────────────
 # We install these directly in the runner stage to ensure all shared libraries,
@@ -128,6 +139,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # ── 4. Copy application settings and scripts ──────────────────────────────────
 COPY --chown=nextjs:nodejs settings.json     ./settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
+COPY --chown=nextjs:nodejs mediamtx.yml     ./mediamtx.yml
 
 # Ensure all files in /app are owned by nextjs
 RUN chown -R nextjs:nodejs /app

@@ -2,6 +2,9 @@ import { exec } from "child_process";
 import { existsSync, readdirSync, copyFileSync, unlinkSync } from "fs";
 import { mkdir } from "fs/promises";
 import path from "path";
+import { randomUUID } from "crypto";
+import { rm } from "fs/promises";
+
 
 // ── Locate soffice ────────────────────────────────────────────────────────────
 function resolveSoffice(): string {
@@ -73,23 +76,41 @@ export async function compressOffice(
     await mkdir(outputDir, { recursive: true });
   }
 
-  const cmd = `${soffice} --headless --convert-to ${format} "${inputPath}" --outdir "${outputDir}"`;
+  // Use a unique user profile in /tmp for each conversion.
+  // This bypasses permission issues with the default home directory in Docker
+  // and allows concurrent LibreOffice instances to run safely.
+  const userProfileDir = path.join(os.tmpdir(), `libreoffice_profile_${randomUUID()}`);
+  const userProfileUri = `file://${userProfileDir.replace(/\\/g, "/")}`;
 
-  await new Promise<void>((resolve, reject) => {
-    exec(cmd, { timeout: 120_000 }, (error, _stdout, stderr) => {
-      if (error) {
-        reject(
-          new Error(
-            stderr?.trim()
-              ? `LibreOffice error: ${stderr.trim()}`
-              : error.message
-          )
-        );
-        return;
-      }
-      resolve();
+  const cmd = `${soffice} --headless "-env:UserInstallation=${userProfileUri}" --convert-to ${format} "${inputPath}" --outdir "${outputDir}"`;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      exec(cmd, { timeout: 120_000 }, (error, _stdout, stderr) => {
+        if (error) {
+          reject(
+            new Error(
+              stderr?.trim()
+                ? `LibreOffice error: ${stderr.trim()}`
+                : error.message
+            )
+          );
+          return;
+        }
+        resolve();
+      });
     });
-  });
+  } finally {
+    // Clean up the temporary user profile to avoid filling up /tmp
+    try {
+      if (existsSync(userProfileDir)) {
+        await rm(userProfileDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.warn(`Failed to clean up LibreOffice profile at ${userProfileDir}:`, err);
+    }
+  }
+
 
   // LibreOffice names the output after the input basename
   const convertedName = path.basename(inputPath, path.extname(inputPath)) + `.${format}`;

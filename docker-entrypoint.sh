@@ -19,8 +19,8 @@ echo "[check] MediaMTX     : $(mediamtx --version 2>/dev/null || echo 'NOT FOUND
 
 # ── Start MediaMTX (RTSP/RTMP/HLS server) in the background ──────────────────
 if command -v mediamtx > /dev/null 2>&1; then
-    echo "[start] Starting MediaMTX..."
-    mediamtx &
+    echo "[start] Starting MediaMTX with /app/mediamtx.yml..."
+    mediamtx /app/mediamtx.yml &
     MEDIAMTX_PID=$!
     echo "[start] MediaMTX started with PID ${MEDIAMTX_PID}"
 else
