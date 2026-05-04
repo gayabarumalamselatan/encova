@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { compressOffice, sanitizeFilename } from "@/lib/compress/office";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** System temp dir — avoids importing 'os' which Next.js bundler can drop. */
+function tempDir(): string {
+  return process.env.TEMP ?? process.env.TMP ?? process.env.TMPDIR ?? "/tmp";
+}
 
 // ── Allowed types ─────────────────────────────────────────────────────────────
 const ALLOWED_EXTENSIONS = new Set([".docx", ".xlsx"]);
@@ -70,7 +76,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 export async function POST(req: Request) {
-  let tempPaths: string[] = [];
+  const tempPaths: string[] = [];
 
   try {
     const formData = await req.formData();
@@ -92,7 +98,7 @@ export async function POST(req: Request) {
       await mkdir(downloadsDir, { recursive: true });
     }
 
-    // ── Process each file ──────────────────────────────────────────────────────
+    const tmp = tempDir();
     const results: object[] = [];
 
     for (const file of allFiles) {
@@ -119,9 +125,10 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Save to temp
       const uniqueId = crypto.randomUUID();
-      const tempInput = path.join(os.tmpdir(), `encova_${uniqueId}${ext}`);
+
+      // Save upload to temp
+      const tempInput = path.join(tmp, `encova_${uniqueId}${ext}`);
       tempPaths.push(tempInput);
 
       const bytes = await file.arrayBuffer();
@@ -129,24 +136,27 @@ export async function POST(req: Request) {
       const originalSize = buffer.length;
       await writeFile(tempInput, buffer);
 
-      // LibreOffice writes to a temp subdir (to avoid name collisions)
-      const tempOutDir = path.join(os.tmpdir(), `encova_out_${uniqueId}`);
+      // LibreOffice writes into a unique temp subdir
+      const tempOutDir = path.join(tmp, `encova_out_${uniqueId}`);
+
+      // Sanitized output filename — no spaces, safe for URLs
       const outputFilename = `${uniqueId}_${safeName}`;
       const outputPath = path.join(downloadsDir, outputFilename);
 
       try {
         await compressOffice(tempInput, tempOutDir, outputPath);
         const compressedSize = statSync(outputPath).size;
-        const reduction = originalSize > 0
-          ? `${Math.round(((originalSize - compressedSize) / originalSize) * 100)}%`
-          : "0%";
+        const reduction =
+          originalSize > 0
+            ? `${Math.round(((originalSize - compressedSize) / originalSize) * 100)}%`
+            : "0%";
 
         results.push({
-          filename: file.name,
+          filename: file.name,      // original name for display
           originalSize,
           compressedSize,
           reduction,
-          downloadUrl: `/downloads/${outputFilename}`,
+          downloadUrl: `/downloads/${outputFilename}`,  // sanitized, no spaces
           status: "completed",
         });
       } catch (err: any) {
