@@ -142,7 +142,7 @@ COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 COPY --chown=nextjs:nodejs mediamtx.yml     ./mediamtx.yml
 
 # Ensure all files in /app are owned by nextjs
-RUN chown -R nextjs:nodejs /app
+RUN mkdir -p /app/downloads && chown -R nextjs:nodejs /app
 
 USER nextjs
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir, unlink } from "node:fs/promises";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, statSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { compressOffice, sanitizeFilename } from "@/lib/compress/office";
@@ -83,10 +83,10 @@ export async function POST(req: Request) {
     const compressedSize = statSync(outputPath).size;
 
     return NextResponse.json({
-      filename: file.name,          // original name shown in UI
+      filename: file.name, // original name shown in UI
       originalSize,
       compressedSize,
-      downloadUrl: `/downloads/${outputFilename}`,  // sanitized, no spaces
+      downloadUrl: `/downloads/${outputFilename}`, // sanitized, no spaces
     });
   } catch (err: any) {
     console.error("POST /api/compress error:", err);
@@ -100,7 +100,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: friendly }, { status: 500 });
   } finally {
     if (tempInputPath) {
-      try { unlinkSync(tempInputPath); } catch { /* ignore */ }
+      try {
+        unlinkSync(tempInputPath);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

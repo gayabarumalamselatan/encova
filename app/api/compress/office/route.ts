@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     // ── Ensure output dir ──────────────────────────────────────────────────────
-    const downloadsDir = path.join(process.cwd(), "public", "downloads");
+    const downloadsDir = path.join(process.cwd(), "downloads");
     if (!existsSync(downloadsDir)) {
       await mkdir(downloadsDir, { recursive: true });
     }
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
           originalSize,
           compressedSize,
           reduction,
-          downloadUrl: `/downloads/${outputFilename}`,  // sanitized, no spaces
+          downloadUrl: `/api/download?file=${outputFilename}`,  // sanitized, no spaces
           status: "completed",
         });
       } catch (err: any) {

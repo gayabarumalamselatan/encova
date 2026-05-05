@@ -41,6 +41,8 @@ services:
       #   scp settings.json user@server-ip:~/encova/settings.json
       # Then uncomment the line below and restart:
       - ./settings.json:/app/settings.json
+      # ── Persistent downloads ────────────────────────────────────────────────
+      - ./downloads:/app/downloads
 
     # Resource limits (tune based on your server capacity)
     deploy:

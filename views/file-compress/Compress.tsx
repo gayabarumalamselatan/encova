@@ -26,6 +26,7 @@ import {
   RotateCcw,
   TrendingDown,
 } from "lucide-react";
+import { generateId } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Level = "low" | "medium" | "high";
@@ -251,7 +252,7 @@ export default function Compress() {
   // Add files
   const addFiles = useCallback((list: FileList | File[]) => {
     const items: FileItem[] = Array.from(list).map((file) => ({
-      id: crypto.randomUUID(),
+      id: generateId(),
       file,
       status: isValidFile(file) ? "pending" : "failed",
       progress: 0,
