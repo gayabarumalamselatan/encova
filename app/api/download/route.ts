@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   // Prevent directory traversal attacks
   const safeFilename = path.basename(filename);
-  const filePath = path.join(process.cwd(), "downloads", safeFilename);
+  const filePath = path.join(process.cwd(), "public", "downloads", safeFilename);
 
   if (!existsSync(filePath)) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
@@ -34,12 +34,17 @@ export async function GET(req: Request) {
       contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     } else if (ext === ".pdf") {
       contentType = "application/pdf";
+    } else if (ext === ".kml") {
+      contentType = "application/vnd.google-earth.kml+xml";
+    } else if (ext === ".kmz") {
+      contentType = "application/vnd.google-earth.kmz";
     }
 
     return new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${safeFilename}"`,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     });
   } catch (err: any) {

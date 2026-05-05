@@ -1,6 +1,6 @@
 services:
   encova:
-    image: encova:latest
+    image: ghcr.io/asiasistemindonesia/encova:latest
     # Uncomment the 'build' block to build locally instead of pulling from registry
     # build:
     #   context: .
@@ -40,7 +40,7 @@ services:
       # To use your real camera config, copy settings.json to the server first:
       #   scp settings.json user@server-ip:~/encova/settings.json
       # Then uncomment the line below and restart:
-      - ./settings.json:/app/settings.json
+      - ./settings.json:/app/settings/settings.json
       # ── Persistent downloads ────────────────────────────────────────────────
       - ./downloads:/app/downloads
 

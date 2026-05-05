@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     // ── Ensure output dir ──────────────────────────────────────────────────────
-    const downloadsDir = path.join(process.cwd(), "downloads");
+    const downloadsDir = path.join(process.cwd(), "public", "downloads");
     if (!existsSync(downloadsDir)) {
       await mkdir(downloadsDir, { recursive: true });
     }

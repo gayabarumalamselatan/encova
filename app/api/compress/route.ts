@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       filename: file.name, // original name shown in UI
       originalSize,
       compressedSize,
-      downloadUrl: `/downloads/${outputFilename}`, // sanitized, no spaces
+      downloadUrl: `/api/download?file=${outputFilename}`, // sanitized, no spaces
     });
   } catch (err: any) {
     console.error("POST /api/compress error:", err);

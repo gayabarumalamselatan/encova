@@ -137,12 +137,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # ── 4. Copy application settings and scripts ──────────────────────────────────
-COPY --chown=nextjs:nodejs settings.json     ./settings.json
+# Create directories for persistent data and set correct permissions
+RUN mkdir -p /app/public/downloads /app/settings \
+    && chown -R nextjs:nodejs /app \
+    && chmod -R 775 /app/public/downloads /app/settings
+
+COPY --chown=nextjs:nodejs settings.json     ./settings/settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 COPY --chown=nextjs:nodejs mediamtx.yml     ./mediamtx.yml
-
-# Ensure all files in /app are owned by nextjs
-RUN mkdir -p /app/downloads && chown -R nextjs:nodejs /app
 
 USER nextjs
 

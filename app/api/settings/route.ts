@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
+const SETTINGS_FILE = path.join(process.cwd(), "settings", "settings.json");
 
 function readSettings() {
   if (!fs.existsSync(SETTINGS_FILE)) {
