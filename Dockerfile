@@ -122,6 +122,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     fontconfig \
     ca-certificates \
+    cifs-utils \
+    nfs-common \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

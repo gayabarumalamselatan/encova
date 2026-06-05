@@ -2,14 +2,39 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const SETTINGS_FILE = path.join(process.cwd(), "settings", "settings.json");
+function isDocker(): boolean {
+  return process.env.DOCKER === "true" || fs.existsSync("/.dockerenv");
+}
+
+function getSettingsPath() {
+  if (isDocker()) {
+    return path.join(process.cwd(), "data", "settings", "settings.json");
+  }
+  return path.join(process.cwd(), "settings", "settings.json");
+}
 
 function readSettings() {
-  if (!fs.existsSync(SETTINGS_FILE)) {
+  const settingsFile = getSettingsPath();
+
+  if (!fs.existsSync(settingsFile)) {
+    if (isDocker()) {
+      const defaultSettingsFile = path.join(process.cwd(), "settings", "settings.json");
+      if (fs.existsSync(defaultSettingsFile)) {
+        try {
+          const raw = fs.readFileSync(defaultSettingsFile, "utf-8");
+          const data = JSON.parse(raw);
+          writeSettings(data);
+          return data;
+        } catch {
+          /* fallback to defaults */
+        }
+      }
+    }
     return { cameras: [], outputs: [], streamSettings: null, nasConfig: null };
   }
+
   try {
-    const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
+    const raw = fs.readFileSync(settingsFile, "utf-8");
     return JSON.parse(raw);
   } catch {
     return { cameras: [], outputs: [], streamSettings: null, nasConfig: null };
@@ -17,7 +42,13 @@ function readSettings() {
 }
 
 function writeSettings(data: object) {
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  const settingsFile = getSettingsPath();
+  const settingsDir = path.dirname(settingsFile);
+
+  if (!fs.existsSync(settingsDir)) {
+    fs.mkdirSync(settingsDir, { recursive: true });
+  }
+  fs.writeFileSync(settingsFile, JSON.stringify(data, null, 2), "utf-8");
 }
 
 export async function GET() {

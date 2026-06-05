@@ -6,6 +6,10 @@ import checkDiskSpace from "check-disk-space";
 import { ScanDirectory } from "./scandir";
 const execPromise = util.promisify(exec);
 
+function isDocker(): boolean {
+  return process.env.DOCKER === "true" || fs.existsSync("/.dockerenv");
+}
+
 export interface NasConfig {
   storageMode: "stream" | "record";
   type: "smb" | "nfs";
@@ -50,40 +54,39 @@ export class NasManager {
     if (config.storageMode !== "record") return true;
     try {
       const basePath = this.getBasePath(config);
-      if (
-        process.platform === "win32" &&
-        config.type === "smb" &&
-        config.username
-      ) {
+
+      if (!isDocker() && process.platform === "win32" && config.type === "smb" && config.username) {
         try {
           const pass = config.password ? ` ${config.password}` : "";
           const user = `/user:${config.username}`;
           await execPromise(`net use "${basePath}"${pass} ${user}`);
         } catch (e) {}
       }
+      
       if (!fs.existsSync(basePath)) {
         fs.mkdirSync(basePath, { recursive: true });
       }
       this.status = "Connected";
       return true;
     } catch (err) {
-      console.error("Mount failed:", err);
+      console.error("Mount check failed:", err);
       this.status = "Disconnected";
       return false;
     }
   }
 
-  getBasePath(config: NasConfig): string {
-    if (process.platform === "win32") {
-      if (config.type === "smb") {
-        const share = config.sharePath.replace(/\//g, "\\").replace(/^\\+/, "");
-        return `\\\\${config.address}\\${share}`;
+  getBasePath(config?: NasConfig): string {
+    if (!isDocker()) {
+      if (process.platform === "win32" && config) {
+        if (config.type === "smb") {
+          const share = config.sharePath.replace(/\//g, "\\").replace(/^\\+/, "");
+          return `\\\\${config.address}\\${share}`;
+        }
+        return "C:\\encova_nas";
       }
-      return "C:\\encova_nas"; // Fallback
-    } else {
-      // Use Docker volume path or environment variable
-      return process.env.STORAGE_PATH || "/storage";
+      return config ? config.sharePath : (process.env.STORAGE_PATH || "/storage");
     }
+    return process.env.STORAGE_PATH || "/storage";
   }
 
   getStatus() {
@@ -97,23 +100,22 @@ export class NasManager {
     try {
       const basePath = this.getBasePath(config);
 
-      // On Windows, if credentials are provided, we might need to authenticate first
-      if (
-        process.platform === "win32" &&
-        config.type === "smb" &&
-        config.username
-      ) {
+      if (!isDocker() && process.platform === "win32" && config.type === "smb" && config.username) {
         try {
           const pass = config.password ? ` ${config.password}` : "";
           const user = `/user:${config.username}`;
           await execPromise(`net use "${basePath}"${pass} ${user}`);
         } catch (e) {
-          // Ignore if already connected or let the write test catch the auth error
+          // Ignore
         }
       }
 
       if (!fs.existsSync(basePath)) {
-        fs.mkdirSync(basePath, { recursive: true });
+        if (!isDocker()) {
+          fs.mkdirSync(basePath, { recursive: true });
+        } else {
+          return { success: false, message: `Storage path ${basePath} does not exist.` };
+        }
       }
 
       const testFile = path.join(basePath, ".encova-test");
@@ -123,7 +125,7 @@ export class NasManager {
       this.status = "Connected";
       return {
         success: true,
-        message: "Connection Successful. Write Permission Verified.",
+        message: "Storage is writable",
       };
     } catch (e: any) {
       this.status = "Disconnected";
@@ -139,16 +141,20 @@ export class NasManager {
     try {
       const basePath = this.getBasePath(config);
 
-      if (
-        process.platform === "win32" &&
-        config.type === "smb" &&
-        config.username
-      ) {
-        try {
-          const pass = config.password ? ` ${config.password}` : "";
-          const user = `/user:${config.username}`;
-          await execPromise(`net use "${basePath}"${pass} ${user}`);
-        } catch (e) {}
+      if (!isDocker()) {
+        if (process.platform === "win32" && config.type === "smb" && config.username) {
+          try {
+            const pass = config.password ? ` ${config.password}` : "";
+            const user = `/user:${config.username}`;
+            await execPromise(`net use "${basePath}"${pass} ${user}`);
+          } catch (e) {}
+        }
+      } else {
+        const resolvedFolder = path.resolve(folderPath);
+        const resolvedBase = path.resolve(basePath);
+        if (!resolvedFolder.startsWith(resolvedBase)) {
+          throw new Error("Cannot create folder outside mounted storage path");
+        }
       }
 
       if (!fs.existsSync(folderPath)) {
@@ -218,7 +224,7 @@ export class NasManager {
 
       let diskInfo = null;
       try {
-        // Use Node's native statfs which supports UNC paths, converting backslashes to forward slashes
+        // Use Node's native statfs which supports UNC paths natively
         const statfsPath = basePath.replace(/\\/g, "/");
         if (fs.promises && typeof fs.promises.statfs === "function") {
           const s = await fs.promises.statfs(statfsPath);
@@ -227,14 +233,11 @@ export class NasManager {
           diskInfo = await checkDiskSpace(basePath);
         }
       } catch (err) {
-        console.error(
-          "Failed to get disk info with statfs, trying checkDiskSpace:",
-          err,
-        );
+        // If statfs fails or isn't available, try checkDiskSpace as fallback
         try {
           diskInfo = await checkDiskSpace(basePath);
         } catch (fallbackErr) {
-          console.error("checkDiskSpace fallback failed:", fallbackErr);
+          console.error("Failed to get disk info:", fallbackErr);
         }
       }
 

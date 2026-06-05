@@ -25,6 +25,8 @@ services:
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       NEXT_TELEMETRY_DISABLED: "1"
+      STORAGE_PATH: /storage
+      DOCKER: "true"
       # ── Add your application secrets below. ──────────────────────────────
       # It is recommended to use a .env file and reference it with env_file.
       # DATABASE_URL: postgres://user:pass@host:5432/encova
@@ -40,7 +42,9 @@ services:
       # To use your real camera config, copy settings.json to the server first:
       #   scp settings.json user@server-ip:~/encova/settings.json
       # Then uncomment the line below and restart:
-      - ./settings.json:/app/settings
+      - ./data/settings:/app/data/settings
+      # ── NAS Storage ────────────────────────────────────────────────────────
+      - /mnt/encova:/storage
       # ── Persistent downloads ────────────────────────────────────────────────
       - ./downloads:/app/public/downloads
 
