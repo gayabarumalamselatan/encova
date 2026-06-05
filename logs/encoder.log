@@ -1,0 +1,216 @@
+[2026-06-03T08:38:27.126Z] [INFO] [FFMPEG COMMAND] ffmpeg -loglevel info -i rtsp://admin:abcd1234@192.168.0.128:554/ch1/0 -map 0:v -c:v libx264 -preset veryfast -map 0:a? -c:a aac -f flv rtmp://127.0.0.1/live/stream -map 0:v -c:v libx264 -preset veryfast -map 0:a? -c:a aac -f segment -segment_time 60 -reset_timestamps 1 -strftime 1 //192.168.19.189/encova/cam01/%Y/%m/%d/%H-%M-%S.mp4
+[2026-06-03T08:38:27.134Z] [INFO] [ENCODER]
+FFmpeg process started
+PID: 11204
+Cameras: Camera 1
+[2026-06-03T08:38:27.942Z] [INFO] Recording segment started
+File:
+15-38-27.mp4
+[2026-06-03T08:39:29.582Z] [INFO] Recording segment completed
+File:
+15-38-27.mp4
+Size:
+5.3 MB
+Duration:
+1 minutes
+[2026-06-03T08:39:29.582Z] [INFO] Recording segment started
+File:
+15-39-29.mp4
+[2026-06-03T08:40:29.496Z] [INFO] Recording segment completed
+File:
+15-39-29.mp4
+Size:
+5.2 MB
+Duration:
+1 minutes
+[2026-06-03T08:40:29.497Z] [INFO] Recording segment started
+File:
+15-40-29.mp4
+[2026-06-03T08:41:29.712Z] [INFO] Recording segment completed
+File:
+15-40-29.mp4
+Size:
+5.3 MB
+Duration:
+1 minutes
+[2026-06-03T08:41:29.713Z] [INFO] Recording segment started
+File:
+15-41-29.mp4
+[2026-06-03T08:42:29.480Z] [INFO] Recording segment completed
+File:
+15-41-29.mp4
+Size:
+5.2 MB
+Duration:
+1 minutes
+[2026-06-03T08:42:29.481Z] [INFO] Recording segment started
+File:
+15-42-29.mp4
+[2026-06-03T08:43:29.558Z] [INFO] Recording segment completed
+File:
+15-42-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:43:29.558Z] [INFO] Recording segment started
+File:
+15-43-29.mp4
+[2026-06-03T08:44:29.508Z] [INFO] Recording segment completed
+File:
+15-43-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:44:29.509Z] [INFO] Recording segment started
+File:
+15-44-29.mp4
+[2026-06-03T08:45:29.437Z] [INFO] Recording segment completed
+File:
+15-44-29.mp4
+Size:
+5.1 MB
+Duration:
+1 minutes
+[2026-06-03T08:45:29.438Z] [INFO] Recording segment started
+File:
+15-45-29.mp4
+[2026-06-03T08:46:29.460Z] [INFO] Recording segment completed
+File:
+15-45-29.mp4
+Size:
+5.1 MB
+Duration:
+1 minutes
+[2026-06-03T08:46:29.461Z] [INFO] Recording segment started
+File:
+15-46-29.mp4
+[2026-06-03T08:47:29.475Z] [INFO] Recording segment completed
+File:
+15-46-29.mp4
+Size:
+5.1 MB
+Duration:
+1 minutes
+[2026-06-03T08:47:29.476Z] [INFO] Recording segment started
+File:
+15-47-29.mp4
+[2026-06-03T08:48:29.474Z] [INFO] Recording segment completed
+File:
+15-47-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:48:29.475Z] [INFO] Recording segment started
+File:
+15-48-29.mp4
+[2026-06-03T08:49:29.471Z] [INFO] Recording segment completed
+File:
+15-48-29.mp4
+Size:
+5.1 MB
+Duration:
+1 minutes
+[2026-06-03T08:49:29.472Z] [INFO] Recording segment started
+File:
+15-49-29.mp4
+[2026-06-03T08:50:29.521Z] [INFO] Recording segment completed
+File:
+15-49-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:50:29.522Z] [INFO] Recording segment started
+File:
+15-50-29.mp4
+[2026-06-03T08:51:29.464Z] [INFO] Recording segment completed
+File:
+15-50-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:51:29.465Z] [INFO] Recording segment started
+File:
+15-51-29.mp4
+[2026-06-03T08:52:29.453Z] [INFO] Recording segment completed
+File:
+15-51-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:52:29.454Z] [INFO] Recording segment started
+File:
+15-52-29.mp4
+[2026-06-03T08:53:29.494Z] [INFO] Recording segment completed
+File:
+15-52-29.mp4
+Size:
+5.0 MB
+Duration:
+1 minutes
+[2026-06-03T08:53:29.495Z] [INFO] Recording segment started
+File:
+15-53-29.mp4
+[2026-06-03T08:54:29.454Z] [INFO] Recording segment completed
+File:
+15-53-29.mp4
+Size:
+4.8 MB
+Duration:
+1 minutes
+[2026-06-03T08:54:29.455Z] [INFO] Recording segment started
+File:
+15-54-29.mp4
+[2026-06-03T08:55:29.460Z] [INFO] Recording segment completed
+File:
+15-54-29.mp4
+Size:
+4.8 MB
+Duration:
+1 minutes
+[2026-06-03T08:55:29.460Z] [INFO] Recording segment started
+File:
+15-55-29.mp4
+[2026-06-03T08:56:29.524Z] [INFO] Recording segment completed
+File:
+15-55-29.mp4
+Size:
+4.9 MB
+Duration:
+1 minutes
+[2026-06-03T08:56:29.525Z] [INFO] Recording segment started
+File:
+15-56-29.mp4
+[2026-06-03T08:57:29.441Z] [INFO] Recording segment completed
+File:
+15-56-29.mp4
+Size:
+4.8 MB
+Duration:
+1 minutes
+[2026-06-03T08:57:29.442Z] [INFO] Recording segment started
+File:
+15-57-29.mp4
+[2026-06-03T08:58:29.481Z] [INFO] Recording segment completed
+File:
+15-57-29.mp4
+Size:
+4.9 MB
+Duration:
+1 minutes
+[2026-06-03T08:58:29.481Z] [INFO] Recording segment started
+File:
+15-58-29.mp4
+[2026-06-03T09:07:16.520Z] [INFO] [FFMPEG COMMAND] ffmpeg -loglevel info -i rtsp://admin:abcd1234@192.168.0.128:554/ch1/0 -map 0:v -c:v libx264 -preset veryfast -map 0:a? -c:a aac -f flv rtmp://127.0.0.1/live/stream -map 0:v -c:v libx264 -preset veryfast -map 0:a? -c:a aac -f segment -segment_time 60 -reset_timestamps 1 -strftime 1 //192.168.19.189/encova/cam01/%Y/%m/%d/%H-%M-%S.mp4
+[2026-06-03T09:07:16.526Z] [INFO] [ENCODER]
+FFmpeg process started
+PID: 51584
+Cameras: Camera 1
+[2026-06-03T09:07:16.915Z] [INFO] Recording segment started
+File:
+16-07-16.mp4

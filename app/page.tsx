@@ -28,6 +28,14 @@ const EncovaLandingPage = () => {
       tag: "Optimization",
     },
     {
+      title: "Video Compression",
+      description:
+        "Compress video files with industry standards in one platform.",
+      href: "/video-compress",
+      icon: <Video className="h-8 w-8 text-primary" />,
+      tag: "Optimization",
+    },
+    {
       title: "API Documentation",
       description:
         "Explore all compression API endpoints with live Try-it-out powered by Swagger UI.",

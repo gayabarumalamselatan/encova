@@ -40,9 +40,9 @@ services:
       # To use your real camera config, copy settings.json to the server first:
       #   scp settings.json user@server-ip:~/encova/settings.json
       # Then uncomment the line below and restart:
-      - ./settings.json:/app/settings/settings.json
+      - ./settings.json:/app/settings
       # ── Persistent downloads ────────────────────────────────────────────────
-      - ./downloads:/app/downloads
+      - ./downloads:/app/public/downloads
 
     # Resource limits (tune based on your server capacity)
     deploy:

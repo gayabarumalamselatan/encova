@@ -27,3 +27,14 @@ yarn-error.log*
 next-env.d.ts
 /lib/generated/prisma
 # settings.json is intentionally NOT ignored — it is committed and baked into the Docker image.
+
+# public media
+/public/videos
+/public/downloads
+/public/images
+
+# temp/generated files
+/temp
+/downloads
+/images
+/videos

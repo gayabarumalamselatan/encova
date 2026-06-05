@@ -1,12 +1,29 @@
-import { NextResponse } from "next/server"
-import { ffmpegManager } from "@/lib/ffmpeg"
+import { NextResponse } from "next/server";
+import { ffmpegManager } from "@/lib/ffmpeg";
+import { nasManager } from "@/lib/nas";
 
 export async function POST(req: Request) {
   try {
-    const { cameras, outputs } = await req.json()
-    ffmpegManager.start(cameras, outputs)
-    return NextResponse.json({ success: true, status: ffmpegManager.getStatus() })
+    console.log("api di hit");
+    // console.log("START INSTANCE:", ffmpegManager.getInstanceId());
+    const { cameras, outputs, nasConfig, streamSettings } = await req.json();
+    console.log("payload di parse");
+    if (nasConfig?.storageMode === "record") {
+      console.log("mount nas");
+      await nasManager.mount(nasConfig);
+      console.log("mount nas done");
+    }
+    console.log("run ffmpeg");
+    ffmpegManager.start(cameras, outputs, nasConfig, streamSettings);
+    console.log("run ffmpeg done");
+    return NextResponse.json({
+      success: true,
+      status: ffmpegManager.getStatus(),
+    });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }

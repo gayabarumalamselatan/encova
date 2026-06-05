@@ -73,7 +73,7 @@ export default function Encode() {
       id: 1,
       name: "Camera 1",
       sourceType: "rtsp",
-      url: "rtsp://192.168.1.100:554/stream1",
+      url: "rtsp://username:password@192.168.x.x:554/ch1/0",
       resolution: "1920x1080",
       fps: "30",
       enabled: true,
@@ -94,7 +94,7 @@ export default function Encode() {
     reconnect: "5",
     videoCodec: "h264",
     preset: "fast",
-    bitrate: "2000k",
+    bitrate: "512k",
     outputResolution: "1280x720",
     keyframe: "2",
     hardwareAccel: false,
@@ -106,6 +106,30 @@ export default function Encode() {
     audioFilter: false,
     noiseReduction: false,
   });
+
+  const [nasConfig, setNasConfig] = useState<{
+    storageMode: "stream" | "record";
+    type: "smb" | "nfs";
+    address: string;
+    sharePath: string;
+    username?: string;
+    password?: string;
+    retentionDays: number;
+    segmentDuration: number;
+    folderPattern: string;
+  }>({
+    storageMode: "stream",
+    type: "smb",
+    address: "",
+    sharePath: "",
+    username: "",
+    password: "",
+    retentionDays: 30,
+    segmentDuration: 5,
+    folderPattern: "{cameraId}/{YYYY}/{MM}/{DD}",
+  });
+
+  const [nasStatus, setNasStatus] = useState<any>(null);
 
   const [logs, setLogs] = useState([
     "[2024-01-15 10:30:15] Encoder initialized",
@@ -123,6 +147,7 @@ export default function Encode() {
         if (data.outputs && data.outputs.length > 0) setOutputs(data.outputs);
 
         if (data.streamSettings) setStreamSettings(data.streamSettings);
+        if (data.nasConfig) setNasConfig(data.nasConfig);
         if (data.autostart) {
           setAutostart(data.autostart || false);
         }
@@ -130,6 +155,20 @@ export default function Encode() {
       } catch (err) {}
     };
     loadSettings();
+
+    // Load NAS Status
+    const fetchNasStatus = async () => {
+      try {
+        const res = await fetch("/api/nas/status");
+        if (res.ok) {
+          const data = await res.json();
+          setNasStatus(data);
+        }
+      } catch (err) {}
+    };
+    fetchNasStatus();
+    const interval = setInterval(fetchNasStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const saveSettings = async () => {
@@ -137,7 +176,13 @@ export default function Encode() {
       await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cameras, outputs, streamSettings, autostart }),
+        body: JSON.stringify({
+          cameras,
+          outputs,
+          streamSettings,
+          autostart,
+          nasConfig,
+        }),
       });
       setLogs((prev) => [
         ...prev,
@@ -258,6 +303,29 @@ export default function Encode() {
       return;
     }
 
+    // Warn if 1080p + 128 kbps is selected
+    if (
+      streamSettings.outputResolution === "1920x1080" &&
+      streamSettings.bitrate === "128k"
+    ) {
+      // Just a warning, not blocking
+      setLogs((prev) => [
+        ...prev,
+        `[${new Date().toLocaleString()}] Warning: Selected bitrate (128 kbps) may produce poor image quality at 1080p resolution.`,
+      ]);
+    }
+
+    const summary = `Encoder Summary:
+Codec      : ${streamSettings.videoCodec === "h265" ? "H.265" : "H.264"}
+Resolution : ${streamSettings.outputResolution}
+Bitrate    : ${streamSettings.bitrate.replace("k", " kbps")}
+Preset     : ${streamSettings.preset}
+Recording  : ${nasConfig.storageMode === "record" ? "Enabled" : "Disabled"}
+
+Do you want to start encoding?`;
+
+    if (!window.confirm(summary)) return;
+
     await fetch("/api/encoder/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -276,6 +344,8 @@ export default function Encode() {
           url: o.url,
           cameraMappings: o.cameraMappings,
         })),
+        nasConfig,
+        streamSettings,
       }),
     });
     setEncoderStatus("running");
@@ -584,7 +654,7 @@ export default function Encode() {
                                   }
                                   placeholder={
                                     camera.sourceType === "rtsp"
-                                      ? "rtsp://192.168.1.100:554/stream1"
+                                      ? "rtsp://username:password@192.168.x.x:554/ch1/0"
                                       : "/dev/video0"
                                   }
                                 />
@@ -761,12 +831,13 @@ export default function Encode() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="ultrafast">
-                              Ultra Fast
-                            </SelectItem>
-                            <SelectItem value="fast">Fast</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="slow">Slow</SelectItem>
+                            <SelectItem value="ultrafast">ultrafast</SelectItem>
+                            <SelectItem value="superfast">superfast</SelectItem>
+                            <SelectItem value="veryfast">veryfast</SelectItem>
+                            <SelectItem value="faster">faster</SelectItem>
+                            <SelectItem value="fast">fast</SelectItem>
+                            <SelectItem value="medium">medium</SelectItem>
+                            <SelectItem value="slow">slow</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -788,12 +859,13 @@ export default function Encode() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="500k">500 Kbps</SelectItem>
-                            <SelectItem value="1000k">1000 Kbps</SelectItem>
-                            <SelectItem value="2000k">2000 Kbps</SelectItem>
-                            <SelectItem value="4000k">4000 Kbps</SelectItem>
-                            <SelectItem value="8000k">8000 Kbps</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
+                            <SelectItem value="128k">128 kbps</SelectItem>
+                            <SelectItem value="256k">256 kbps</SelectItem>
+                            <SelectItem value="512k">512 kbps</SelectItem>
+                            <SelectItem value="768k">768 kbps</SelectItem>
+                            <SelectItem value="1000k">1 Mbps</SelectItem>
+                            <SelectItem value="2000k">2 Mbps</SelectItem>
+                            <SelectItem value="4000k">4 Mbps</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -829,6 +901,13 @@ export default function Encode() {
                             </SelectItem>
                           </SelectContent>
                         </Select>
+                        {streamSettings.outputResolution === "1920x1080" &&
+                          streamSettings.bitrate === "128k" && (
+                            <p className="text-xs text-amber-600 mt-1 font-medium">
+                              Selected bitrate may produce poor image quality at
+                              this resolution.
+                            </p>
+                          )}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="keyframe">Keyframe Interval</Label>
@@ -846,7 +925,7 @@ export default function Encode() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    {/* <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <Switch
                           id="hardware-accel"
@@ -875,7 +954,7 @@ export default function Encode() {
                         />
                         <Label htmlFor="two-pass">Two-Pass Encoding</Label>
                       </div>
-                    </div>
+                    </div> */}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1077,6 +1156,236 @@ export default function Encode() {
                         </Select>
                       </div>
                     )}
+
+                    {/* Storage Mode */}
+                    <div className="space-y-4 mb-6 p-4 border rounded-md bg-white">
+                      <Label className="text-base font-semibold">
+                        Storage Mode
+                      </Label>
+                      <div className="flex items-center space-x-6">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="mode-stream"
+                            name="storageMode"
+                            value="stream"
+                            checked={nasConfig.storageMode === "stream"}
+                            onChange={() =>
+                              setNasConfig({
+                                ...nasConfig,
+                                storageMode: "stream",
+                              })
+                            }
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <Label
+                            htmlFor="mode-stream"
+                            className="cursor-pointer"
+                          >
+                            NVR
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            id="mode-record"
+                            name="storageMode"
+                            value="record"
+                            checked={nasConfig.storageMode === "record"}
+                            onChange={() =>
+                              setNasConfig({
+                                ...nasConfig,
+                                storageMode: "record",
+                              })
+                            }
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <Label
+                            htmlFor="mode-record"
+                            className="cursor-pointer"
+                          >
+                            NAS / Storage
+                          </Label>
+                        </div>
+                      </div>
+
+                      {nasConfig.storageMode === "record" && (
+                        <div className="mt-4 pt-4 border-t space-y-4">
+                          <h4 className="font-semibold text-gray-800">
+                            NAS Configuration
+                          </h4>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Storage Type</Label>
+                              <Select
+                                value={nasConfig.type}
+                                onValueChange={(val: any) =>
+                                  setNasConfig({ ...nasConfig, type: val })
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="smb">
+                                    SMB / CIFS
+                                  </SelectItem>
+                                  <SelectItem value="nfs">NFS</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>NAS Address</Label>
+                              <Input
+                                value={nasConfig.address}
+                                onChange={(e) =>
+                                  setNasConfig({
+                                    ...nasConfig,
+                                    address: e.target.value,
+                                  })
+                                }
+                                placeholder="192.168.1.10"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Share Path</Label>
+                              <Input
+                                value={nasConfig.sharePath}
+                                onChange={(e) =>
+                                  setNasConfig({
+                                    ...nasConfig,
+                                    sharePath: e.target.value,
+                                  })
+                                }
+                                placeholder="/CCTV"
+                              />
+                            </div>
+                            {nasConfig.type === "smb" && (
+                              <>
+                                <div className="space-y-2">
+                                  <Label>Username</Label>
+                                  <Input
+                                    value={nasConfig.username || ""}
+                                    onChange={(e) =>
+                                      setNasConfig({
+                                        ...nasConfig,
+                                        username: e.target.value,
+                                      })
+                                    }
+                                    placeholder="admin"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Password</Label>
+                                  <Input
+                                    type="password"
+                                    value={nasConfig.password || ""}
+                                    onChange={(e) =>
+                                      setNasConfig({
+                                        ...nasConfig,
+                                        password: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </>
+                            )}
+                            <div className="space-y-2">
+                              <Label>Retention Period (Days)</Label>
+                              <Input
+                                type="number"
+                                value={nasConfig.retentionDays}
+                                onChange={(e) =>
+                                  setNasConfig({
+                                    ...nasConfig,
+                                    retentionDays:
+                                      parseInt(e.target.value) || 30,
+                                  })
+                                }
+                                placeholder="30"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Segment Duration (Minutes)</Label>
+                              <Input
+                                type="number"
+                                value={nasConfig.segmentDuration}
+                                onChange={(e) =>
+                                  setNasConfig({
+                                    ...nasConfig,
+                                    segmentDuration:
+                                      parseInt(e.target.value) || 5,
+                                  })
+                                }
+                                placeholder="5"
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>Storage Folder Pattern</Label>
+                              <Input
+                                value={nasConfig.folderPattern}
+                                onChange={(e) =>
+                                  setNasConfig({
+                                    ...nasConfig,
+                                    folderPattern: e.target.value,
+                                  })
+                                }
+                                placeholder="{cameraId}/{YYYY}/{MM}/{DD}"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Example:{" "}
+                                {nasConfig.folderPattern
+                                  .replace("{cameraId}", "cam01")
+                                  .replace(
+                                    "{YYYY}",
+                                    new Date().getFullYear().toString(),
+                                  )
+                                  .replace(
+                                    "{MM}",
+                                    (new Date().getMonth() + 1)
+                                      .toString()
+                                      .padStart(2, "0"),
+                                  )
+                                  .replace(
+                                    "{DD}",
+                                    new Date()
+                                      .getDate()
+                                      .toString()
+                                      .padStart(2, "0"),
+                                  )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            className="mt-2 hover:cursor-pointer"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch("/api/nas/test", {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify(nasConfig),
+                                });
+                                const data = await res.json();
+                                alert(
+                                  data.message ||
+                                    (data.success
+                                      ? "Connection Successful"
+                                      : "Connection Failed"),
+                                );
+                              } catch (e) {
+                                alert("Connection Failed");
+                              }
+                            }}
+                          >
+                            Test NAS Connection
+                          </Button>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold">
@@ -1294,6 +1603,47 @@ export default function Encode() {
                     <span>12 (0.04%)</span>
                   </div>
                 </div>
+
+                {nasConfig.storageMode === "record" && nasStatus && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="text-sm font-semibold mb-2">
+                      Storage Status
+                    </h4>
+                    <div className="flex items-center gap-2 text-sm mb-3">
+                      <div
+                        className={`w-2 h-2 rounded-full ${nasStatus.status === "Connected" ? "bg-green-500" : "bg-red-500"}`}
+                      ></div>
+                      <span className="font-medium">{nasStatus.status}</span>
+                    </div>
+                    {nasStatus.status === "Connected" && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Usage:</span>
+                          <span className="font-medium">
+                            {nasStatus.usedSpace} / {nasStatus.totalSpace}
+                          </span>
+                        </div>
+                        {nasStatus.lastRecordingFile && (
+                          <div className="mt-2 text-xs border rounded p-2 bg-gray-50">
+                            <p className="font-semibold text-gray-700 mb-1">
+                              Last File
+                            </p>
+                            <p
+                              className="truncate text-blue-600"
+                              title={nasStatus.lastRecordingFile.filename}
+                            >
+                              {nasStatus.lastRecordingFile.filename}
+                            </p>
+                            <p className="text-gray-500 mt-1">
+                              {nasStatus.lastRecordingFile.timestamp} •{" "}
+                              {nasStatus.lastRecordingFile.size}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

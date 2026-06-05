@@ -6,13 +6,13 @@ const SETTINGS_FILE = path.join(process.cwd(), "settings", "settings.json");
 
 function readSettings() {
   if (!fs.existsSync(SETTINGS_FILE)) {
-    return { cameras: [], outputs: [], streamSettings: null };
+    return { cameras: [], outputs: [], streamSettings: null, nasConfig: null };
   }
   try {
     const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
     return JSON.parse(raw);
   } catch {
-    return { cameras: [], outputs: [], streamSettings: null };
+    return { cameras: [], outputs: [], streamSettings: null, nasConfig: null };
   }
 }
 
@@ -33,7 +33,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { cameras, outputs, streamSettings, autostart } = body;
+    const { cameras, outputs, streamSettings, autostart, nasConfig } = body;
 
     const current = readSettings();
 
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
       cameras: cameras ?? current.cameras,
       outputs: outputs ?? current.outputs,
       streamSettings: streamSettings ?? current.streamSettings,
+      nasConfig: nasConfig ?? current.nasConfig,
     });
 
     return NextResponse.json({ success: true });

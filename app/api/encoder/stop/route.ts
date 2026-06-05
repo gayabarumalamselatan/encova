@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server"
-import { ffmpegManager } from "@/lib/ffmpeg"
+import { NextResponse } from "next/server";
+import { ffmpegManager } from "@/lib/ffmpeg";
 
 export async function POST() {
-  ffmpegManager.stop()
-  return NextResponse.json({ success: true, status: ffmpegManager.getStatus() })
+  // console.log("STOP INSTANCE:", ffmpegManager.getInstanceId());
+  ffmpegManager.stop();
+  return NextResponse.json({
+    success: true,
+    status: ffmpegManager.getStatus(),
+  });
 }
