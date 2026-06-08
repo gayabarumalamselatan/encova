@@ -31,7 +31,6 @@ next-env.d.ts
 # public media
 /public/videos
 /public/downloads
-/public/images
 
 # temp/generated files
 /temp
