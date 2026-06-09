@@ -34,7 +34,9 @@ class FFmpegManager {
   private status: EncoderStatus = "stopped";
   private cleanupInterval: NodeJS.Timeout | null = null;
   private stopping = false;
-  // private instanceId = Math.random().toString(36);
+  private startTime: number = 0;
+  private activeInputs: number = 0;
+  private activeOutputs: number = 0;
 
   // getInstanceId() {
   //   return this.instanceId;
@@ -116,6 +118,7 @@ class FFmpegManager {
           if (out.type === "hls") format = "hls";
           if (out.type === "file") format = "mp4";
           if (out.type === "rtmp") format = "flv";
+          if (out.type === "rtsp") format = "rtsp";
 
           let finalUrl = out.url;
           if (finalUrl.startsWith("rtmp://")) {
@@ -251,6 +254,9 @@ ${preset ? `-preset ${preset}` : ""}`;
     });
 
     this.status = "running";
+    this.startTime = Date.now();
+    this.activeInputs = cameras.length;
+    this.activeOutputs = outputs.filter(o => o.cameraMappings && o.cameraMappings.length > 0).length;
     this.logs.push(logHeader);
     this.logs.push(
       `[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`,
@@ -302,6 +308,9 @@ ${preset ? `-preset ${preset}` : ""}`;
       this.status = "stopped";
       this.process = null;
       this.stopping = false;
+      this.activeInputs = 0;
+      this.activeOutputs = 0;
+      this.startTime = 0;
 
       if (this.cleanupInterval) {
         clearInterval(this.cleanupInterval);
@@ -410,6 +419,16 @@ ${preset ? `-preset ${preset}` : ""}`;
 
   getLogs() {
     return this.logs.slice(-200); // limit last 200 logs
+  }
+
+  getMetrics() {
+    return {
+      status: this.status === "running" ? 1 : 0,
+      processCount: this.process ? 1 : 0,
+      activeInputs: this.activeInputs,
+      activeOutputs: this.activeOutputs,
+      uptimeSeconds: this.startTime > 0 ? Math.floor((Date.now() - this.startTime) / 1000) : 0,
+    };
   }
 }
 

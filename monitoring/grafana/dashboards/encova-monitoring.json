@@ -1,0 +1,125 @@
+{
+  "title": "Encova Monitoring",
+  "uid": "encova-monitoring",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU Usage %",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "legendFormat": "Node CPU"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "RAM Usage %",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+          "legendFormat": "Node RAM"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Cameras",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "encova_active_cameras" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Active Outputs",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+      "targets": [
+        { "expr": "encova_active_outputs" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "FFmpeg Processes",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "encova_ffmpeg_processes" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Encoder Status",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+      "targets": [
+        { "expr": "encova_encoder_status" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container CPU (cAdvisor)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "rate(container_cpu_usage_seconds_total{name=~\"encova-.*\"}[5m]) * 100", "legendFormat": "{{name}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Container RAM (cAdvisor)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "expr": "container_memory_usage_bytes{name=~\"encova-.*\"}", "legendFormat": "{{name}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "NAS Total Capacity",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 20 },
+      "targets": [
+        { "expr": "encova_storage_total_bytes" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "title": "NAS Used Capacity",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 20 },
+      "targets": [
+        { "expr": "encova_storage_used_bytes" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "title": "NAS Free Capacity",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 20 },
+      "targets": [
+        { "expr": "encova_storage_free_bytes" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "title": "Recording Storage Used",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 20 },
+      "targets": [
+        { "expr": "encova_storage_used_bytes" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "type": "stat",
+      "title": "Recording File Count",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 20 },
+      "targets": [
+        { "expr": "encova_recording_files_total" }
+      ]
+    }
+  ],
+  "schemaVersion": 16,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  }
+}

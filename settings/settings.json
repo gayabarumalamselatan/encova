@@ -14,8 +14,8 @@
   "outputs": [
     {
       "id": 1,
-      "type": "rtmp",
-      "url": "rtmp://127.0.0.1/live/stream",
+      "type": "rtsp",
+      "url": "rtsp://127.0.0.1:8554/live/stream",
       "enabled": true,
       "cameraMappings": [
         1
@@ -26,7 +26,7 @@
     "buffer": "1024",
     "timeout": "10",
     "reconnect": "5",
-    "videoCodec": "h264",
+    "videoCodec": "h265",
     "preset": "fast",
     "bitrate": "128k",
     "outputResolution": "1280x720",
@@ -41,7 +41,7 @@
     "noiseReduction": false
   },
   "nasConfig": {
-    "storageMode": "stream",
+    "storageMode": "record",
     "type": "smb",
     "address": "192.168.19.189",
     "sharePath": "/encova",

@@ -300,6 +300,50 @@ export class NasManager {
       };
     }
   }
+
+  async getStorageMetrics() {
+    const targetConfig = this.currentConfig;
+    if (!targetConfig) {
+      return { totalBytes: 0, usedBytes: 0, freeBytes: 0, recordingBytes: 0, recordingFiles: 0 };
+    }
+
+    try {
+      const basePath = this.getBasePath(targetConfig);
+
+      let diskInfo = null;
+      try {
+        const statfsPath = basePath.replace(/\\/g, "/");
+        if (fs.promises && typeof fs.promises.statfs === "function") {
+          const s = await fs.promises.statfs(statfsPath);
+          diskInfo = { size: s.bsize * s.blocks, free: s.bsize * s.bfree };
+        } else {
+          diskInfo = await checkDiskSpace(basePath);
+        }
+      } catch (err) {
+        try {
+          diskInfo = await checkDiskSpace(basePath);
+        } catch (fallbackErr) {}
+      }
+
+      let recordingBytes = 0;
+      let recordingFiles = 0;
+      try {
+        const recordingInfo = await ScanDirectory(basePath);
+        recordingBytes = recordingInfo.totalSize;
+        recordingFiles = recordingInfo.fileCount || 0;
+      } catch (err) {}
+
+      return {
+        totalBytes: diskInfo ? diskInfo.size : 0,
+        usedBytes: diskInfo ? (diskInfo.size - diskInfo.free) : 0,
+        freeBytes: diskInfo ? diskInfo.free : 0,
+        recordingBytes,
+        recordingFiles,
+      };
+    } catch (err) {
+      return { totalBytes: 0, usedBytes: 0, freeBytes: 0, recordingBytes: 0, recordingFiles: 0 };
+    }
+  }
 }
 
 export const nasManager = new NasManager();

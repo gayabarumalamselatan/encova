@@ -14,8 +14,8 @@
   "outputs": [
     {
       "id": 1,
-      "type": "rtmp",
-      "url": "rtmp://127.0.0.1/live/stream",
+      "type": "rtsp",
+      "url": "rtsp://127.0.0.1/live/stream",
       "enabled": false,
       "cameraMappings": [1]
     }

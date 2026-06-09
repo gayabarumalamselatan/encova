@@ -17,9 +17,7 @@
       "type": "rtmp",
       "url": "rtmp://127.0.0.1/live/stream",
       "enabled": true,
-      "cameraMappings": [
-        1
-      ]
+      "cameraMappings": [1]
     }
   ],
   "streamSettings": {

@@ -5,10 +5,12 @@ export async function ScanDirectory(dir: string): Promise<{
   totalSize: number;
   latestFile: string | null;
   latestMtime: number;
+  fileCount: number;
 }> {
   let totalSize = 0;
   let latestFile: string | null = null;
   let latestMtime = 0;
+  let fileCount = 0;
 
   let items;
   try {
@@ -28,6 +30,7 @@ export async function ScanDirectory(dir: string): Promise<{
       const result = await ScanDirectory(fullPath);
 
       totalSize += result.totalSize;
+      fileCount += result.fileCount;
 
       if (result.latestMtime > latestMtime) {
         latestMtime = result.latestMtime;
@@ -42,6 +45,7 @@ export async function ScanDirectory(dir: string): Promise<{
       try {
         const stat = await fs.stat(fullPath);
         totalSize += stat.size;
+        fileCount += 1;
 
         if (stat.mtimeMs > latestMtime) {
           latestMtime = stat.mtimeMs;
@@ -57,5 +61,6 @@ export async function ScanDirectory(dir: string): Promise<{
     totalSize,
     latestFile,
     latestMtime,
+    fileCount,
   };
 }

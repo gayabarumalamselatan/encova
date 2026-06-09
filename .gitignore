@@ -35,5 +35,4 @@ next-env.d.ts
 # temp/generated files
 /temp
 /downloads
-/images
 /videos

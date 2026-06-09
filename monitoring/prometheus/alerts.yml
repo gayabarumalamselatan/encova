@@ -1,0 +1,29 @@
+groups:
+  - name: encova_alerts
+    rules:
+      - alert: EncoderDown
+        expr: encova_encoder_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Encova encoder is down"
+          description: "Encoder status has been 0 for more than 1 minute."
+
+      - alert: NASStorageCritical
+        expr: (encova_storage_free_bytes / encova_storage_total_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NAS storage space is critically low"
+          description: "Less than 10% of storage space is free for more than 5 minutes."
+
+      - alert: HighCPU
+        expr: (100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU Usage"
+          description: "CPU usage is above 90% for 5 minutes."

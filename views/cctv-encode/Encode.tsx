@@ -39,6 +39,14 @@ import {
   ArrowLeftIcon,
 } from "lucide-react";
 
+const OUTPUT_DEFAULTS: Record<string, string> = {
+  rtmp: "rtmp://127.0.0.1/live/stream",
+  rtsp: "rtsp://127.0.0.1:8554/live/stream",
+  file: "/storage/recordings/output.mp4",
+  hls: "/storage/hls/index.m3u8",
+  dash: "/storage/dash/manifest.mpd",
+};
+
 interface Camera {
   id: number;
   name: string;
@@ -84,6 +92,13 @@ export default function Encode() {
       id: 1,
       type: "rtmp",
       url: "rtmp://127.0.0.1/live/stream",
+      enabled: true,
+      cameraMappings: [1],
+    },
+    {
+      id: 2,
+      type: "rtsp",
+      url: "rtsp://127.0.0.1:8554/live/stream",
       enabled: true,
       cameraMappings: [1],
     },
@@ -210,11 +225,19 @@ export default function Encode() {
     const newOutId = Math.max(...outputs.map((o) => o.id), 0) + 1;
     setOutputs([
       ...outputs,
+      // {
+      //   id: newOutId,
+      //   type: "rtmp",
+      //   // url: `rtmp://${deviceIp}/live/stream${newOutId}`,
+      //   url: `rtmp://127.0.0.1/live/stream${newOutId}`,
+      //   enabled: true,
+      //   cameraMappings: [newId],
+      // },
       {
         id: newOutId,
-        type: "rtmp",
+        type: "rtsp",
         // url: `rtmp://${deviceIp}/live/stream${newOutId}`,
-        url: `rtmp://127.0.0.1/live/stream${newOutId}`,
+        url: `rtsp://127.0.0.1:8554/live/stream${newOutId}`,
         enabled: true,
         cameraMappings: [newId],
       },
@@ -262,8 +285,23 @@ export default function Encode() {
     field: string,
     value: string | boolean | number[],
   ) => {
+    console.log("value", value, id);
     setOutputs(
       outputs.map((o) => (o.id === id ? { ...o, [field]: value } : o)),
+    );
+  };
+
+  const handleOutputTypeChange = (id: number, type: string) => {
+    setOutputs((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              type,
+              url: OUTPUT_DEFAULTS[type] ?? "",
+            }
+          : o,
+      ),
     );
   };
 
@@ -611,6 +649,7 @@ Do you want to start encoding?`;
                                   Source Type
                                 </Label>
                                 <Select
+                                  disabled
                                   value={camera.sourceType}
                                   onValueChange={(value) =>
                                     updateCamera(camera.id, "sourceType", value)
@@ -1435,7 +1474,7 @@ Do you want to start encoding?`;
                                 <Select
                                   value={output.type}
                                   onValueChange={(value) =>
-                                    updateOutput(output.id, "type", value)
+                                    handleOutputTypeChange(output.id, value)
                                   }
                                 >
                                   <SelectTrigger>
@@ -1444,6 +1483,9 @@ Do you want to start encoding?`;
                                   <SelectContent>
                                     <SelectItem value="rtmp">
                                       RTMP Stream
+                                    </SelectItem>
+                                    <SelectItem value="rtsp">
+                                      RTSP Stream
                                     </SelectItem>
                                     <SelectItem value="file">
                                       File Recording
@@ -1480,7 +1522,9 @@ Do you want to start encoding?`;
                                         ? "/videos/cam1.mp4"
                                         : output.type === "hls"
                                           ? "/hls/stream.m3u8"
-                                          : "/dash/stream.mpd"
+                                          : output.type === "rtsp"
+                                            ? "rtsp://server/live/stream1"
+                                            : "/dash/stream.mpd"
                                   }
                                 />
                               </div>
