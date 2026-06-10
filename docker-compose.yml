@@ -19,6 +19,7 @@ services:
       - "8888:8888"
       # node-media-server HTTP API
       - "8000:8000"
+      - "9997:9997"
 
     environment:
       NODE_ENV: production
@@ -67,7 +68,7 @@ services:
         max-size: "20m"
         max-file: "5"
 
-# (No global volumes needed)
+  # (No global volumes needed)
 
   prometheus:
     image: prom/prometheus:latest
@@ -78,8 +79,8 @@ services:
     volumes:
       - ./monitoring/prometheus:/etc/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
 
   grafana:
     image: grafana/grafana:latest

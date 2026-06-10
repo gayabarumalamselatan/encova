@@ -301,10 +301,18 @@ export class NasManager {
     }
   }
 
-  async getStorageMetrics() {
+  async getMetrics() {
     const targetConfig = this.currentConfig;
     if (!targetConfig) {
-      return { totalBytes: 0, usedBytes: 0, freeBytes: 0, recordingBytes: 0, recordingFiles: 0 };
+      return { 
+        connected: false,
+        totalBytes: 0, 
+        usedBytes: 0, 
+        freeBytes: 0, 
+        recordingBytes: 0, 
+        recordingFiles: 0,
+        latestRecordingTimestamp: 0
+      };
     }
 
     try {
@@ -327,21 +335,35 @@ export class NasManager {
 
       let recordingBytes = 0;
       let recordingFiles = 0;
+      let latestRecordingTimestamp = 0;
       try {
         const recordingInfo = await ScanDirectory(basePath);
         recordingBytes = recordingInfo.totalSize;
         recordingFiles = recordingInfo.fileCount || 0;
+        if (recordingInfo.latestMtime) {
+          latestRecordingTimestamp = Math.floor(recordingInfo.latestMtime / 1000);
+        }
       } catch (err) {}
 
       return {
+        connected: this.status === "Connected",
         totalBytes: diskInfo ? diskInfo.size : 0,
         usedBytes: diskInfo ? (diskInfo.size - diskInfo.free) : 0,
         freeBytes: diskInfo ? diskInfo.free : 0,
         recordingBytes,
         recordingFiles,
+        latestRecordingTimestamp
       };
     } catch (err) {
-      return { totalBytes: 0, usedBytes: 0, freeBytes: 0, recordingBytes: 0, recordingFiles: 0 };
+      return { 
+        connected: false,
+        totalBytes: 0, 
+        usedBytes: 0, 
+        freeBytes: 0, 
+        recordingBytes: 0, 
+        recordingFiles: 0,
+        latestRecordingTimestamp: 0
+      };
     }
   }
 }

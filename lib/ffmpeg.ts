@@ -37,6 +37,15 @@ class FFmpegManager {
   private startTime: number = 0;
   private activeInputs: number = 0;
   private activeOutputs: number = 0;
+  
+  // Metrics tracking
+  private totalRestartCount: number = 0;
+  private totalErrorCount: number = 0;
+  private currentCodec: string = "";
+  private currentBitrate: string = "";
+  private currentResolution: string = "";
+  private currentFps: string = "";
+  private currentPreset: string = "";
 
   // getInstanceId() {
   //   return this.instanceId;
@@ -56,6 +65,13 @@ class FFmpegManager {
     const vcodec =
       streamSettings?.videoCodec === "h265" ? "libx265" : "libx264";
     const preset = streamSettings?.preset || "veryfast";
+
+    // Track stream settings
+    this.currentCodec = streamSettings?.videoCodec || "h264";
+    this.currentPreset = preset;
+    this.currentBitrate = streamSettings?.bitrate || "unknown";
+    this.currentResolution = streamSettings?.outputResolution || "same";
+    this.currentFps = cameras[0]?.fps || "unknown";
 
     let bitrateArgs: string[] = [];
     if (streamSettings?.bitrate && streamSettings.bitrate !== "custom") {
@@ -251,6 +267,7 @@ ${preset ? `-preset ${preset}` : ""}`;
       );
 
       this.status = "error";
+      this.totalErrorCount++;
     });
 
     this.status = "running";
@@ -311,6 +328,11 @@ ${preset ? `-preset ${preset}` : ""}`;
       this.activeInputs = 0;
       this.activeOutputs = 0;
       this.startTime = 0;
+      this.currentCodec = "";
+      this.currentPreset = "";
+      this.currentBitrate = "";
+      this.currentResolution = "";
+      this.currentFps = "";
 
       if (this.cleanupInterval) {
         clearInterval(this.cleanupInterval);
@@ -409,6 +431,7 @@ ${preset ? `-preset ${preset}` : ""}`;
 
   restart(cameras: Camera[], outputs: Output[], nasConfig?: NasConfig) {
     this.stop();
+    this.totalRestartCount++;
     setTimeout(() => this.start(cameras, outputs, nasConfig), 1000);
     this.logs.push(`[${new Date().toISOString()}] Encoder restarted`);
   }
@@ -427,8 +450,26 @@ ${preset ? `-preset ${preset}` : ""}`;
       processCount: this.process ? 1 : 0,
       activeInputs: this.activeInputs,
       activeOutputs: this.activeOutputs,
-      uptimeSeconds: this.startTime > 0 ? Math.floor((Date.now() - this.startTime) / 1000) : 0,
+      uptimeSeconds: this.getEncoderUptime(),
+      totalRestartCount: this.totalRestartCount,
+      totalErrorCount: this.totalErrorCount,
+      currentCodec: this.currentCodec,
+      currentBitrate: this.currentBitrate,
+      currentResolution: this.currentResolution,
+      currentFps: this.currentFps,
+      currentPreset: this.currentPreset,
     };
+  }
+
+  getEncoderUptime() {
+    if (this.status === "running" && this.startTime > 0) {
+      return Math.floor((Date.now() - this.startTime) / 1000);
+    }
+    return 0;
+  }
+
+  isRunning() {
+    return this.status === "running" && this.process !== null;
   }
 }
 
