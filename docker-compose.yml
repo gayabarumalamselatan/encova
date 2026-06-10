@@ -48,6 +48,8 @@ services:
       - /mnt/encova:/storage
       # ── Persistent downloads ────────────────────────────────────────────────
       - ./downloads:/app/public/downloads
+      # ── MediaMTX ────────────────────────────────────────────────────────
+      - ./data/mediamtx/mediamtx.yml:/app/mediamtx.yml
 
     # Resource limits (tune based on your server capacity)
     deploy:
