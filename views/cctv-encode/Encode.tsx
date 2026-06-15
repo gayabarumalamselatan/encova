@@ -38,6 +38,8 @@ import {
   Trash2,
   ArrowLeftIcon,
 } from "lucide-react";
+import { log } from "console";
+import { EncoderStatus } from "@/lib/types/ffmpeg";
 
 const OUTPUT_DEFAULTS: Record<string, string> = {
   rtmp: "rtmp://127.0.0.1/live/stream",
@@ -68,9 +70,7 @@ interface Output {
 export default function Encode() {
   const [autostart, setAutostart] = useState(false);
   const [initialized, setInitialized] = useState(false);
-  const [encoderStatus, setEncoderStatus] = useState<
-    "stopped" | "running" | "error"
-  >("stopped");
+  const [encoderStatus, setEncoderStatus] = useState<EncoderStatus>("stopped");
   const [deviceIp, setDeviceIp] = useState<string>("127.0.0.1");
   const [networkAdapters, setNetworkAdapters] = useState<
     { name: string; ip: string }[]
@@ -465,15 +465,63 @@ Do you want to start encoding?`;
   // }, []);
 
   useEffect(() => {
-    if (encoderStatus === "running") {
-      const interval = setInterval(async () => {
-        const res = await fetch("/api/encoder/logs");
+    const syncStatus = async () => {
+      try {
+        const res = await fetch("/api/encoder/status");
         const data = await res.json();
-        setLogs(data.logs);
-      }, 2000);
 
-      return () => clearInterval(interval);
-    }
+        console.log("datas", data);
+
+        setEncoderStatus(data.status);
+        setLogs(data.logs || []);
+      } catch (err) {
+        console.error("Failed to load encoder status", err);
+      }
+    };
+
+    syncStatus();
+  }, []);
+
+  // useEffect(() => {
+  //   const syncEncoderStatus = async () => {
+  //     try {
+  //       const res = await fetch("/api/encoder/status");
+  //       const data = await res.json();
+
+  //       setEncoderStatus(data.status);
+  //       setLogs(data.logs);
+  //     } catch (err) {
+  //       console.error("Failed to sync encoder status", err);
+  //     }
+  //   };
+
+  //   syncEncoderStatus();
+  // }, []);
+
+  // useEffect(() => {
+  //   if (encoderStatus === "running") {
+  //     const interval = setInterval(async () => {
+  //       const logs = await checkEncoderLogs();
+  //       setLogs(logs);
+  //     }, 2000);
+
+  //     return () => clearInterval(interval);
+  //   } else {
+  //   }
+  // }, [encoderStatus]);
+
+  useEffect(() => {
+    if (encoderStatus !== "running") return;
+
+    const interval = setInterval(async () => {
+      const res = await fetch("/api/encoder/status");
+      const data = await res.json();
+      console.log("asd", data);
+      setEncoderStatus(data.status);
+      setLogs(data.logs || []);
+    }, 2000);
+
+    return () => clearInterval(interval);
   }, [encoderStatus]);
 
   useEffect(() => {

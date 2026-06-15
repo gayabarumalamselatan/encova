@@ -2,31 +2,7 @@ import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import fs from "fs";
 import path from "path";
 import { NasConfig, nasManager } from "./nas";
-
-type EncoderStatus = "stopped" | "running" | "error" | "stopping";
-
-interface Camera {
-  id: number;
-  name: string;
-  sourceType: string;
-  url: string;
-  resolution: string;
-  fps: string;
-}
-
-interface Output {
-  id: number;
-  type: string;
-  url: string;
-  cameraMappings: number[];
-}
-
-export interface StreamSettings {
-  videoCodec?: string;
-  preset?: string;
-  bitrate?: string;
-  outputResolution?: string;
-}
+import { EncoderStatus, Camera, Output, StreamSettings } from "./types/ffmpeg";
 
 class FFmpegManager {
   private process: ChildProcessWithoutNullStreams | null = null;
@@ -37,7 +13,7 @@ class FFmpegManager {
   private startTime: number = 0;
   private activeInputs: number = 0;
   private activeOutputs: number = 0;
-  
+
   // Metrics tracking
   private totalRestartCount: number = 0;
   private totalErrorCount: number = 0;
@@ -273,7 +249,9 @@ ${preset ? `-preset ${preset}` : ""}`;
     this.status = "running";
     this.startTime = Date.now();
     this.activeInputs = cameras.length;
-    this.activeOutputs = outputs.filter(o => o.cameraMappings && o.cameraMappings.length > 0).length;
+    this.activeOutputs = outputs.filter(
+      (o) => o.cameraMappings && o.cameraMappings.length > 0,
+    ).length;
     this.logs.push(logHeader);
     this.logs.push(
       `[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`,
@@ -437,7 +415,15 @@ ${preset ? `-preset ${preset}` : ""}`;
   }
 
   getStatus() {
-    return this.status;
+    const isRunning = this.process && this.process.pid && !this.process.killed;
+
+    if (isRunning) {
+      this.status = "running";
+    } else if (!this.stopping) {
+      this.status = "stopped";
+      this.process = null;
+    }
+    return { status: this.status, logs: this.logs.slice(-200) };
   }
 
   getLogs() {

@@ -41,7 +41,7 @@
     "noiseReduction": false
   },
   "nasConfig": {
-    "storageMode": "record",
+    "storageMode": "stream",
     "type": "smb",
     "address": "192.168.19.189",
     "sharePath": "/encova",
@@ -50,5 +50,50 @@
     "retentionDays": 30,
     "segmentDuration": 1,
     "folderPattern": "{cameraId}/{YYYY}/{MM}/{DD}"
-  }
+  },
+  "availableModules": [
+    {
+      "id": "cctv-encode",
+      "name": "CCTV Encode"
+    },
+    {
+      "id": "file-compress",
+      "name": "File Compress"
+    },
+    {
+      "id": "video-compress",
+      "name": "Video Compression"
+    },
+    {
+      "id": "api-docs",
+      "name": "API Documentation"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "505b39ca-719f-47a1-b4a0-4262659caf2b",
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin",
+      "enabled": true,
+      "modules": [
+        "all"
+      ],
+      "createdAt": "2026-06-15T05:02:42.036Z",
+      "updatedAt": "2026-06-15T05:02:42.036Z"
+    },
+    {
+      "id": "41fb9be8-7ad0-4f63-9341-da527e351d4b",
+      "username": "cctv",
+      "password": "cctv",
+      "role": "user",
+      "enabled": true,
+      "modules": [
+        "cctv-encode",
+        "video-compress"
+      ],
+      "createdAt": "2026-06-15T05:03:33.342Z",
+      "updatedAt": "2026-06-15T05:09:53.033Z"
+    }
+  ]
 }

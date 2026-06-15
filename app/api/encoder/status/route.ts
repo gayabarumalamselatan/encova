@@ -1,8 +1,6 @@
-import { NextResponse } from "next/server"
-import { ffmpegManager } from "@/lib/ffmpeg"
+import { NextResponse } from "next/server";
+import { ffmpegManager } from "@/lib/ffmpeg";
 
 export async function GET() {
-  return NextResponse.json({
-    status: ffmpegManager.getStatus(),
-  })
+  return NextResponse.json(ffmpegManager.getStatus());
 }
