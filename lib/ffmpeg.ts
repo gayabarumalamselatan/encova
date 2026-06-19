@@ -22,6 +22,9 @@ class FFmpegManager {
   private currentResolution: string = "";
   private currentFps: string = "";
   private currentPreset: string = "";
+  
+  private frames: number = 0;
+  private dropped: number = 0;
 
   // getInstanceId() {
   //   return this.instanceId;
@@ -268,6 +271,17 @@ ${preset ? `-preset ${preset}` : ""}`;
 
       this.logs.push(msg);
 
+      // Parse frame and drop
+      const frameMatch = msg.match(/frame=\s*(\d+)/);
+      if (frameMatch) {
+        this.frames = parseInt(frameMatch[1], 10);
+      }
+      
+      const dropMatch = msg.match(/drop=\s*(\d+)/);
+      if (dropMatch) {
+        this.dropped = parseInt(dropMatch[1], 10);
+      }
+
       if (this.logs.length > 1000) {
         this.logs = this.logs.slice(-1000);
       }
@@ -306,6 +320,8 @@ ${preset ? `-preset ${preset}` : ""}`;
       this.activeInputs = 0;
       this.activeOutputs = 0;
       this.startTime = 0;
+      this.frames = 0;
+      this.dropped = 0;
       this.currentCodec = "";
       this.currentPreset = "";
       this.currentBitrate = "";
@@ -423,7 +439,13 @@ ${preset ? `-preset ${preset}` : ""}`;
       this.status = "stopped";
       this.process = null;
     }
-    return { status: this.status, logs: this.logs.slice(-200) };
+    return { 
+      status: this.status, 
+      logs: this.logs.slice(-200),
+      uptime: this.getEncoderUptime(),
+      frames: this.frames,
+      dropped: this.dropped
+    };
   }
 
   getLogs() {

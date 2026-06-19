@@ -76,6 +76,10 @@ export default function Encode() {
     { name: string; ip: string }[]
   >([]);
 
+  const [uptime, setUptime] = useState<number>(0);
+  const [frames, setFrames] = useState<number>(0);
+  const [dropped, setDropped] = useState<number>(0);
+
   const [cameras, setCameras] = useState<Camera[]>([
     {
       id: 1,
@@ -431,6 +435,19 @@ Do you want to start encoding?`;
     }
   };
 
+  const formatUptime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const m = Math.floor((seconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+
   useEffect(() => {
     const fetchIp = async () => {
       try {
@@ -474,6 +491,9 @@ Do you want to start encoding?`;
 
         setEncoderStatus(data.status);
         setLogs(data.logs || []);
+        setUptime(data.uptime || 0);
+        setFrames(data.frames || 0);
+        setDropped(data.dropped || 0);
       } catch (err) {
         console.error("Failed to load encoder status", err);
       }
@@ -519,6 +539,9 @@ Do you want to start encoding?`;
       console.log("asd", data);
       setEncoderStatus(data.status);
       setLogs(data.logs || []);
+      setUptime(data.uptime || 0);
+      setFrames(data.frames || 0);
+      setDropped(data.dropped || 0);
     }, 2000);
 
     return () => clearInterval(interval);
@@ -1684,15 +1707,21 @@ Do you want to start encoding?`;
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Uptime:</span>
-                    <span>00:15:32</span>
+                    <span>{formatUptime(uptime)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Frames:</span>
-                    <span>28,456</span>
+                    <span>{frames.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Dropped:</span>
-                    <span>12 (0.04%)</span>
+                    <span>
+                      {dropped.toLocaleString()} (
+                      {frames > 0
+                        ? ((dropped / (frames + dropped)) * 100).toFixed(2)
+                        : "0.00"}
+                      %)
+                    </span>
                   </div>
                 </div>
 
