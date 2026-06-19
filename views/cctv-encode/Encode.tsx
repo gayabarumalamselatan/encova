@@ -79,6 +79,7 @@ export default function Encode() {
   const [uptime, setUptime] = useState<number>(0);
   const [frames, setFrames] = useState<number>(0);
   const [dropped, setDropped] = useState<number>(0);
+  const [cameraStatuses, setCameraStatuses] = useState<any[]>([]);
 
   const [cameras, setCameras] = useState<Camera[]>([
     {
@@ -490,6 +491,7 @@ Do you want to start encoding?`;
         console.log("datas", data);
 
         setEncoderStatus(data.status);
+        if (data.cameras) setCameraStatuses(data.cameras);
         setLogs(data.logs || []);
         setUptime(data.uptime || 0);
         setFrames(data.frames || 0);
@@ -538,6 +540,7 @@ Do you want to start encoding?`;
       const data = await res.json();
       console.log("asd", data);
       setEncoderStatus(data.status);
+      if (data.cameras) setCameraStatuses(data.cameras);
       setLogs(data.logs || []);
       setUptime(data.uptime || 0);
       setFrames(data.frames || 0);
@@ -1691,39 +1694,57 @@ Do you want to start encoding?`;
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5" />
-                  Encoder Status
+                  Overall Encoder Status
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div
-                    className={`w-3 h-3 rounded-full ${getStatusColor()}`}
-                  ></div>
-                  <span className="font-medium capitalize">
-                    {encoderStatus}
-                  </span>
+                  <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
+                  <span className="font-medium capitalize">{encoderStatus}</span>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Uptime:</span>
+                    <span>Overall Uptime:</span>
                     <span>{formatUptime(uptime)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Frames:</span>
+                    <span>Total Frames:</span>
                     <span>{frames.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span>Dropped:</span>
+                    <span>Total Dropped:</span>
                     <span>
-                      {dropped.toLocaleString()} (
-                      {frames > 0
-                        ? ((dropped / (frames + dropped)) * 100).toFixed(2)
-                        : "0.00"}
-                      %)
+                      {dropped.toLocaleString()} ({frames > 0 ? ((dropped / (frames + dropped)) * 100).toFixed(2) : "0.00"}%)
                     </span>
                   </div>
                 </div>
+
+                {cameraStatuses && cameraStatuses.length > 0 && (
+                  <div className="mt-4 pt-4 border-t space-y-3">
+                    <h4 className="text-sm font-semibold mb-2">Camera Processes</h4>
+                    {cameraStatuses.map((cam, idx) => (
+                      <div key={idx} className="text-xs border rounded p-2 bg-gray-50 flex flex-col gap-1">
+                        <div className="flex justify-between font-semibold">
+                          <span>{cam.name}</span>
+                          <span className={`capitalize ${cam.status === "running" ? "text-green-600" : "text-gray-500"}`}>{cam.status}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>PID: {cam.pid || "N/A"}</span>
+                          <span>Uptime: {formatUptime(cam.uptime)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>Codec: {cam.codec}</span>
+                          <span>Res: {cam.resolution}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>Outputs: {cam.activeOutputs}</span>
+                          <span>FPS: {cam.fps}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {nasConfig.storageMode === "record" && nasStatus && (
                   <div className="mt-4 pt-4 border-t">

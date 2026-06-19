@@ -9,6 +9,24 @@
       "resolution": "1920x1080",
       "fps": "30",
       "enabled": true
+    },
+    {
+      "id": 2,
+      "name": "Camera 2",
+      "sourceType": "rtsp",
+      "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch2/0",
+      "resolution": "1920x1080",
+      "fps": "30",
+      "enabled": true
+    },
+    {
+      "id": 3,
+      "name": "Camera 3",
+      "sourceType": "rtsp",
+      "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch3/0",
+      "resolution": "1920x1080",
+      "fps": "30",
+      "enabled": true
     }
   ],
   "outputs": [
@@ -20,6 +38,24 @@
       "cameraMappings": [
         1
       ]
+    },
+    {
+      "id": 2,
+      "type": "rtsp",
+      "url": "rtsp://127.0.0.1:8554/live/stream2",
+      "enabled": true,
+      "cameraMappings": [
+        2
+      ]
+    },
+    {
+      "id": 3,
+      "type": "rtsp",
+      "url": "rtsp://127.0.0.1:8554/live/stream3",
+      "enabled": true,
+      "cameraMappings": [
+        3
+      ]
     }
   ],
   "streamSettings": {
@@ -27,7 +63,7 @@
     "timeout": "10",
     "reconnect": "5",
     "videoCodec": "h265",
-    "preset": "fast",
+    "preset": "ultrafast",
     "bitrate": "128k",
     "outputResolution": "1280x720",
     "keyframe": "2",

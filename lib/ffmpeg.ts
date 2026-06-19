@@ -4,53 +4,57 @@ import path from "path";
 import { NasConfig, nasManager } from "./nas";
 import { EncoderStatus, Camera, Output, StreamSettings } from "./types/ffmpeg";
 
-class FFmpegManager {
-  private process: ChildProcessWithoutNullStreams | null = null;
-  private logs: string[] = [];
-  private status: EncoderStatus = "stopped";
-  private cleanupInterval: NodeJS.Timeout | null = null;
-  private stopping = false;
-  private startTime: number = 0;
-  private activeInputs: number = 0;
-  private activeOutputs: number = 0;
+export class FFmpegProcess {
+  public process: ChildProcessWithoutNullStreams | null = null;
+  public logs: string[] = [];
+  public status: EncoderStatus = "stopped";
+  public stopping = false;
+  public startTime: number = 0;
 
-  // Metrics tracking
-  private totalRestartCount: number = 0;
-  private totalErrorCount: number = 0;
-  private currentCodec: string = "";
-  private currentBitrate: string = "";
-  private currentResolution: string = "";
-  private currentFps: string = "";
-  private currentPreset: string = "";
-  
-  private frames: number = 0;
-  private dropped: number = 0;
+  public frames: number = 0;
+  public dropped: number = 0;
+  public fps: string = "";
+  public bitrate: string = "";
+  public resolution: string = "";
+  public codec: string = "";
+  public preset: string = "";
+  public activeOutputs: number = 0;
 
-  // getInstanceId() {
-  //   return this.instanceId;
-  // }
+  constructor(
+    public cameraId: number,
+    public cameraName: string,
+  ) {}
+
   start(
-    cameras: Camera[],
+    camera: Camera,
     outputs: Output[],
     nasConfig?: NasConfig,
     streamSettings?: StreamSettings,
   ) {
-    if (this.process) {
-      throw new Error("Encoder is already running");
-    }
+    if (this.process) throw new Error("Already running");
 
     const args: string[] = [];
-
     const vcodec =
       streamSettings?.videoCodec === "h265" ? "libx265" : "libx264";
     const preset = streamSettings?.preset || "veryfast";
 
-    // Track stream settings
-    this.currentCodec = streamSettings?.videoCodec || "h264";
-    this.currentPreset = preset;
-    this.currentBitrate = streamSettings?.bitrate || "unknown";
-    this.currentResolution = streamSettings?.outputResolution || "same";
-    this.currentFps = cameras[0]?.fps || "unknown";
+    this.codec = streamSettings?.videoCodec || "h264";
+    this.preset = preset;
+    this.bitrate = streamSettings?.bitrate || "unknown";
+    this.resolution = streamSettings?.outputResolution || "same";
+    this.fps = camera.fps || "unknown";
+
+    // Stability improvements
+    args.push("-use_wallclock_as_timestamps", "1");
+    args.push("-fflags", "+genpts");
+    args.push("-thread_queue_size", "1024");
+
+    // Default RTSP Transport to TCP
+    if (camera.url.startsWith("rtsp://") && !args.includes("-rtsp_transport")) {
+      args.push("-rtsp_transport", "tcp");
+    }
+
+    args.push("-i", camera.url);
 
     let bitrateArgs: string[] = [];
     if (streamSettings?.bitrate && streamSettings.bitrate !== "custom") {
@@ -58,8 +62,7 @@ class FFmpegManager {
       const numMatch = br.match(/(\d+)k/);
       if (numMatch) {
         const num = parseInt(numMatch[1], 10);
-        const buf = num * 2;
-        bitrateArgs = ["-b:v", br, "-maxrate", br, "-bufsize", `${buf}k`];
+        bitrateArgs = ["-b:v", br, "-maxrate", br, "-bufsize", `${num * 2}k`];
       } else {
         bitrateArgs = [
           "-b:v",
@@ -78,67 +81,192 @@ class FFmpegManager {
         ? ["-s", streamSettings.outputResolution]
         : [];
 
-    // Push each camera as an input stream
-    cameras.forEach((cam) => {
-      args.push("-i", cam.url || "");
-    });
+    const fpsArgs = camera.fps ? ["-r", camera.fps] : [];
 
-    // Map outputs
+    args.push(
+      "-c:v",
+      vcodec,
+      "-preset",
+      preset,
+      ...resArgs,
+      ...fpsArgs,
+      ...bitrateArgs,
+    );
+    args.push("-c:a", "aac");
+
+    const teeOutputs: string[] = [];
+
+    // Outputs
+    let validOutputsCount = 0;
     outputs.forEach((out) => {
-      if (out.cameraMappings && out.cameraMappings.length > 0) {
-        const camId = out.cameraMappings[0];
-        const camIndex = cameras.findIndex((c) => c.id === camId);
-        if (camIndex !== -1) {
-          const fps = cameras[camIndex].fps;
-          const fpsArgs = fps ? ["-r", fps] : [];
+      let format = "flv";
+      if (out.type === "dash") format = "dash";
+      if (out.type === "hls") format = "hls";
+      if (out.type === "file") format = "mp4";
+      if (out.type === "rtmp") format = "flv";
+      if (out.type === "rtsp") format = "rtsp";
 
-          args.push(
-            "-map",
-            `${camIndex}:v`,
-            "-c:v",
-            vcodec,
-            "-preset",
-            preset,
-            ...resArgs,
-            ...fpsArgs,
-            ...bitrateArgs,
-            "-map",
-            `${camIndex}:a?`,
-            "-c:a",
-            "aac",
-          );
+      let finalUrl = out.url;
+      if (finalUrl.startsWith("rtmp://")) {
+        try {
+          const urlObj = new URL(finalUrl);
+          urlObj.hostname = "127.0.0.1";
+          finalUrl = urlObj.toString();
+        } catch (e) {}
+      }
 
-          let format = "flv";
-          if (out.type === "dash") format = "dash";
-          if (out.type === "hls") format = "hls";
-          if (out.type === "file") format = "mp4";
-          if (out.type === "rtmp") format = "flv";
-          if (out.type === "rtsp") format = "rtsp";
-
-          let finalUrl = out.url;
-          if (finalUrl.startsWith("rtmp://")) {
-            try {
-              const urlObj = new URL(finalUrl);
-              urlObj.hostname = "127.0.0.1";
-              finalUrl = urlObj.toString();
-            } catch (e) {
-              // fallback to original if parsing fails
-            }
-          }
-
-          args.push("-f", format, finalUrl);
-        }
+      // Workaround for some formats in tee
+      if (format === "rtsp") {
+        teeOutputs.push(`[f=rtsp]${finalUrl}`);
+        validOutputsCount++;
+      } else {
+        teeOutputs.push(`[f=${format}]${finalUrl}`);
+        validOutputsCount++;
       }
     });
 
-    // Add recording outputs if enabled
+    // Recording
     if (nasConfig?.storageMode === "record") {
       const basePath = nasManager.getBasePath(nasConfig);
       const duration = nasConfig.segmentDuration
         ? nasConfig.segmentDuration * 60
         : 300;
+      const now = new Date();
+      const YYYY = now.getFullYear().toString();
+      const MM = (now.getMonth() + 1).toString().padStart(2, "0");
+      const DD = now.getDate().toString().padStart(2, "0");
 
-      // Before starting, we want to ensure base access
+      const camStr = `cam${camera.id.toString().padStart(2, "0")}`;
+      let pattern = nasConfig.folderPattern || "{cameraId}/{YYYY}/{MM}/{DD}";
+
+      const currentDirPattern = pattern
+        .replace("{cameraId}", camStr)
+        .replace("{YYYY}", YYYY)
+        .replace("{MM}", MM)
+        .replace("{DD}", DD);
+      const currentDirPath = path.join(basePath, currentDirPattern);
+      if (!fs.existsSync(currentDirPath)) {
+        try {
+          fs.mkdirSync(currentDirPath, { recursive: true });
+        } catch (e) {}
+      }
+
+      let ffmpegPattern = pattern
+        .replace("{cameraId}", camStr)
+        .replace("{YYYY}", "%Y")
+        .replace("{MM}", "%m")
+        .replace("{DD}", "%d");
+      const outFilePath = path
+        .join(basePath, ffmpegPattern, "%H-%M-%S.mp4")
+        .replace(/\\/g, "/");
+
+      teeOutputs.push(
+        `[f=segment:segment_time=${duration}:reset_timestamps=1:strftime=1]${outFilePath}`,
+      );
+      validOutputsCount++;
+    }
+
+    if (teeOutputs.length > 0) {
+      args.push(
+        "-f",
+        "tee",
+        "-map",
+        "0:v",
+        "-map",
+        "0:a?",
+        teeOutputs.join("|"),
+      );
+    } else {
+      // If nothing to do, just return
+      return;
+    }
+
+    this.activeOutputs = validOutputsCount;
+
+    const logHeader = `[Camera ${camera.id}] Starting ffmpeg with tee outputs: ${teeOutputs.length}`;
+    console.log(logHeader);
+
+    this.process = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+    this.status = "running";
+    this.startTime = Date.now();
+    this.logs.push(logHeader);
+
+    this.process.on("error", (error) => {
+      this.logs.push(
+        `[${new Date().toISOString()}] FFmpeg process error: ${error.message}`,
+      );
+      this.status = "error";
+    });
+
+    this.process.stdout.on("data", (data) => {
+      this.logs.push(data.toString());
+      if (this.logs.length > 500) this.logs = this.logs.slice(-500);
+    });
+
+    this.process.stderr.on("data", (data) => {
+      const msg = data.toString();
+      this.logs.push(msg);
+
+      const frameMatch = msg.match(/frame=\s*(\d+)/);
+      if (frameMatch) this.frames = parseInt(frameMatch[1], 10);
+
+      const dropMatch = msg.match(/drop=\s*(\d+)/);
+      if (dropMatch) this.dropped = parseInt(dropMatch[1], 10);
+
+      if (this.logs.length > 500) this.logs = this.logs.slice(-500);
+    });
+
+    this.process.on("close", (code) => {
+      this.logs.push(
+        `[${new Date().toISOString()}] FFmpeg exited. Code=${code}.`,
+      );
+      this.status = "stopped";
+      this.process = null;
+      this.stopping = false;
+      this.startTime = 0;
+
+      // Auto-restart logic would ideally be managed by Manager, but for simplicity we could emit event or just let manager poll
+    });
+  }
+
+  stop() {
+    if (!this.process) return;
+    this.stopping = true;
+    this.status = "stopping";
+    try {
+      if (this.process.stdin && this.process.stdin.writable) {
+        this.process.stdin.write("q\n");
+      } else {
+        this.process.kill("SIGTERM");
+      }
+      setTimeout(() => {
+        if (this.process) this.process.kill("SIGKILL");
+      }, 5000);
+    } catch (e) {
+      this.process.kill("SIGKILL");
+    }
+  }
+
+  getUptime() {
+    return this.status === "running" && this.startTime > 0
+      ? Math.floor((Date.now() - this.startTime) / 1000)
+      : 0;
+  }
+}
+
+class FFmpegManager {
+  public processes: Map<number, FFmpegProcess> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private totalRestartCount = 0;
+  private totalErrorCount = 0;
+
+  start(
+    cameras: Camera[],
+    outputs: Output[],
+    nasConfig?: NasConfig,
+    streamSettings?: StreamSettings,
+  ) {
+    if (nasConfig?.storageMode === "record") {
       if (
         process.platform === "win32" &&
         nasConfig.type === "smb" &&
@@ -147,341 +275,120 @@ class FFmpegManager {
         try {
           const { execSync } = require("child_process");
           const pass = nasConfig.password ? ` ${nasConfig.password}` : "";
+          const basePath = nasManager.getBasePath(nasConfig);
           execSync(`net use "${basePath}"${pass} /user:${nasConfig.username}`);
         } catch (e) {}
       }
-
-      const now = new Date();
-      const YYYY = now.getFullYear().toString();
-      const MM = (now.getMonth() + 1).toString().padStart(2, "0");
-      const DD = now.getDate().toString().padStart(2, "0");
-
-      cameras.forEach((cam) => {
-        // Only record cameras that are mapped to at least one output (i.e. being encoded)
-        const isMapped = outputs.some((out) =>
-          out.cameraMappings?.includes(cam.id),
-        );
-        if (isMapped) {
-          const camIndex = cameras.findIndex((c) => c.id === cam.id);
-
-          const camStr = `cam${cam.id.toString().padStart(2, "0")}`;
-          let pattern =
-            nasConfig.folderPattern || "{cameraId}/{YYYY}/{MM}/{DD}";
-
-          // Pre-create current folder directory for ffmpeg
-          const currentDirPattern = pattern
-            .replace("{cameraId}", camStr)
-            .replace("{YYYY}", YYYY)
-            .replace("{MM}", MM)
-            .replace("{DD}", DD);
-
-          const currentDirPath = path.join(basePath, currentDirPattern);
-          if (!fs.existsSync(currentDirPath)) {
-            try {
-              fs.mkdirSync(currentDirPath, { recursive: true });
-            } catch (e) {
-              console.error("Failed to create dir", currentDirPath, e);
-            }
-          }
-
-          // Setup strftime format for ffmpeg
-          let ffmpegPattern = pattern
-            .replace("{cameraId}", camStr)
-            .replace("{YYYY}", "%Y")
-            .replace("{MM}", "%m")
-            .replace("{DD}", "%d");
-
-          const outFilePath = path
-            .join(basePath, ffmpegPattern, "%H-%M-%S.mp4")
-            .replace(/\\/g, "/");
-
-          const fps = cameras[camIndex].fps;
-          const fpsArgs = fps ? ["-r", fps] : [];
-
-          args.push(
-            "-map",
-            `${camIndex}:v`,
-            "-c:v",
-            vcodec,
-            "-preset",
-            preset,
-            ...resArgs,
-            ...fpsArgs,
-            ...bitrateArgs,
-            "-map",
-            `${camIndex}:a?`,
-            "-c:a",
-            "aac",
-            "-f",
-            "segment",
-            "-segment_time",
-            duration.toString(),
-            "-reset_timestamps",
-            "1",
-            "-strftime",
-            "1",
-            outFilePath,
-          );
-        }
-      });
     }
 
-    const logHeader = `[FFMPEG]
-${vcodec ? `-c:v ${vcodec}` : ""}
-${resArgs.length ? `-s ${streamSettings?.outputResolution}` : ""}
-${cameras[0]?.fps ? `-r ${cameras[0].fps}` : ""}
-${bitrateArgs.length ? `-b:v ${streamSettings?.bitrate} -maxrate ${streamSettings?.bitrate} -bufsize ${parseInt((streamSettings?.bitrate || "0").replace("k", "")) * 2}k` : ""}
-${preset ? `-preset ${preset}` : ""}`;
+    cameras.forEach((cam) => {
+      if (this.processes.has(cam.id)) {
+        this.processes.get(cam.id)?.stop();
+      }
 
-    console.log(logHeader);
-    console.log("Starting ffmpeg with args:", args.join(" "));
-
-    this.process = spawn("ffmpeg", args, {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-
-    this.process.on("error", (error) => {
-      this.logs.push(
-        `[${new Date().toISOString()}] FFmpeg process error: ${error.message}`,
+      const camOutputs = outputs.filter((o) =>
+        o.cameraMappings?.includes(cam.id),
       );
+      if (camOutputs.length === 0 && nasConfig?.storageMode !== "record")
+        return;
 
-      this.status = "error";
-      this.totalErrorCount++;
+      const proc = new FFmpegProcess(cam.id, cam.name);
+      proc.start(cam, camOutputs, nasConfig, streamSettings);
+      this.processes.set(cam.id, proc);
     });
 
-    this.status = "running";
-    this.startTime = Date.now();
-    this.activeInputs = cameras.length;
-    this.activeOutputs = outputs.filter(
-      (o) => o.cameraMappings && o.cameraMappings.length > 0,
-    ).length;
-    this.logs.push(logHeader);
-    this.logs.push(
-      `[${new Date().toISOString()}] Encoder started configuring ${cameras.length} cameras to ${outputs.length} outputs.`,
-    );
-
-    this.process.stdout.on("data", (data) => {
-      this.logs.push(data.toString());
-    });
-
-    this.process.stderr.on("data", (data) => {
-      const msg = data.toString();
-
-      console.log(msg);
-
-      this.logs.push(msg);
-
-      // Parse frame and drop
-      const frameMatch = msg.match(/frame=\s*(\d+)/);
-      if (frameMatch) {
-        this.frames = parseInt(frameMatch[1], 10);
-      }
-      
-      const dropMatch = msg.match(/drop=\s*(\d+)/);
-      if (dropMatch) {
-        this.dropped = parseInt(dropMatch[1], 10);
-      }
-
-      if (this.logs.length > 1000) {
-        this.logs = this.logs.slice(-1000);
-      }
-    });
-
-    // this.process.on("close", (code) => {
-    //   this.logs.push(
-    //     `[${new Date().toISOString()}] Encoder stopped with code ${code}`,
-    //   );
-    //   this.status = "stopped";
-    //   this.process = null;
-    //   if (this.cleanupInterval) {
-    //     clearInterval(this.cleanupInterval);
-    //     this.cleanupInterval = null;
-    //   }
-    // });
-
-    this.process.on("exit", (code, signal) => {
-      this.logs.push(
-        `[${new Date().toISOString()}] FFmpeg exit event. code=${code}, signal=${signal}`,
-      );
-    });
-
-    this.process.on("close", (code) => {
-      const reason = this.stopping
-        ? "Process Stopped Successfuly"
-        : "Process exited unexpectedly";
-
-      this.logs.push(
-        `[${new Date().toISOString()}] FFmpeg exited. Code=${code}. ${reason}`,
-      );
-
-      this.status = "stopped";
-      this.process = null;
-      this.stopping = false;
-      this.activeInputs = 0;
-      this.activeOutputs = 0;
-      this.startTime = 0;
-      this.frames = 0;
-      this.dropped = 0;
-      this.currentCodec = "";
-      this.currentPreset = "";
-      this.currentBitrate = "";
-      this.currentResolution = "";
-      this.currentFps = "";
-
-      if (this.cleanupInterval) {
-        clearInterval(this.cleanupInterval);
-        this.cleanupInterval = null;
-      }
-    });
-
-    if (nasConfig?.storageMode === "record") {
+    if (nasConfig?.storageMode === "record" && !this.cleanupInterval) {
       this.cleanupInterval = setInterval(
         () => {
           nasManager.cleanup(nasConfig).catch(console.error);
         },
         1000 * 60 * 60,
-      ); // Run cleanup every hour
-
-      // Also run once on start
+      );
       nasManager.cleanup(nasConfig).catch(console.error);
     }
-  }
 
-  // stop() {
-  //   if (this.process) {
-  //     this.process.kill("SIGTERM");
-  //     this.process = null;
-  //     this.status = "stopped";
-  //     if (this.cleanupInterval) {
-  //       clearInterval(this.cleanupInterval);
-  //       this.cleanupInterval = null;
-  //     }
-  //     this.logs.push(`[${new Date().toISOString()}] Encoder stopped manually`);
-  //   }
-  // }
+    // Auto-restart checking loop
+    setInterval(() => {
+      this.processes.forEach((proc, id) => {
+        if (proc.status === "stopped" && !proc.stopping) {
+          // We'd restart here if needed, increment restart count
+          this.totalRestartCount++;
+        }
+      });
+    }, 10000);
+  }
 
   stop() {
-    if (!this.process) {
-      this.logs.push(
-        `[${new Date().toISOString()}] Stop requested but no FFmpeg process is running`,
-      );
-      return;
+    this.processes.forEach((proc) => proc.stop());
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
-
-    if (this.stopping) {
-      this.logs.push(`[${new Date().toISOString()}] Stop already in progress`);
-      return;
-    }
-
-    const pid = this.process.pid;
-
-    this.logs.push(`[${new Date().toISOString()}] stopping encoder...`);
-
-    this.status = "stopping";
-    this.stopping = true;
-
-    this.logs.push(
-      `[${new Date().toISOString()}] Stopping encoder (PID ${pid})`,
-    );
-
-    try {
-      if (this.process.stdin && this.process.stdin.writable) {
-        // FFmpeg built-in graceful shutdown
-        this.logs.push(
-          `[${new Date().toISOString()}] Sending shutdown command (q)`,
-        );
-        this.process.stdin.write("q\n");
-        console.log("stdin writable:", this.process.stdin.writable);
-      } else {
-        this.logs.push(
-          `[${new Date().toISOString()}] FFmpeg stdin is not writable, forcing SIGTERM`,
-        );
-
-        this.process.kill("SIGTERM");
-      }
-
-      // Safety timeout
-      setTimeout(() => {
-        if (this.process) {
-          this.logs.push(
-            `[${new Date().toISOString()}] Graceful stop timeout. Forcing termination...`,
-          );
-
-          try {
-            this.process.kill("SIGTERM");
-          } catch {}
-        }
-      }, 15000);
-    } catch (err: any) {
-      this.logs.push(
-        `[${new Date().toISOString()}] Graceful shutdown failed: ${err.message}`,
-      );
-
-      try {
-        this.process.kill("SIGTERM");
-      } catch {}
-    }
-  }
-
-  restart(cameras: Camera[], outputs: Output[], nasConfig?: NasConfig) {
-    this.stop();
-    this.totalRestartCount++;
-    setTimeout(() => this.start(cameras, outputs, nasConfig), 1000);
-    this.logs.push(`[${new Date().toISOString()}] Encoder restarted`);
   }
 
   getStatus() {
-    const isRunning = this.process && this.process.pid && !this.process.killed;
+    const cameraStatuses = Array.from(this.processes.values()).map((p) => ({
+      id: p.cameraId,
+      name: p.cameraName,
+      status: p.status,
+      uptime: p.getUptime(),
+      frames: p.frames,
+      dropped: p.dropped,
+      logs: p.logs.slice(-50),
+      pid: p.process?.pid,
+      codec: p.codec,
+      resolution: p.resolution,
+      bitrate: p.bitrate,
+      activeOutputs: p.activeOutputs,
+    }));
 
-    if (isRunning) {
-      this.status = "running";
-    } else if (!this.stopping) {
-      this.status = "stopped";
-      this.process = null;
-    }
-    return { 
-      status: this.status, 
-      logs: this.logs.slice(-200),
-      uptime: this.getEncoderUptime(),
-      frames: this.frames,
-      dropped: this.dropped
+    const anyRunning = cameraStatuses.some((c) => c.status === "running");
+
+    return {
+      status: anyRunning ? "running" : "stopped",
+      cameras: cameraStatuses,
+      logs: cameraStatuses.flatMap((c) => c.logs).slice(-200), // legacy logs array
+      uptime: Math.max(0, ...cameraStatuses.map((c) => c.uptime)),
+      frames: cameraStatuses.reduce((a, b) => a + b.frames, 0),
+      dropped: cameraStatuses.reduce((a, b) => a + b.dropped, 0),
     };
   }
 
   getLogs() {
-    return this.logs.slice(-200); // limit last 200 logs
+    return Array.from(this.processes.values())
+      .flatMap((c) => c.logs)
+      .slice(-200);
   }
 
   getMetrics() {
+    const statuses = Array.from(this.processes.values());
+    const anyRunning = statuses.some((c) => c.status === "running");
+    const runningCount = statuses.filter((c) => c.status === "running").length;
+    const firstRunning = statuses.find((c) => c.status === "running");
+
     return {
-      status: this.status === "running" ? 1 : 0,
-      processCount: this.process ? 1 : 0,
-      activeInputs: this.activeInputs,
-      activeOutputs: this.activeOutputs,
-      uptimeSeconds: this.getEncoderUptime(),
+      status: anyRunning ? 1 : 0,
+      processCount: runningCount,
+      activeInputs: statuses.length,
+      activeOutputs: statuses.reduce((sum, p) => sum + p.activeOutputs, 0),
+      uptimeSeconds: firstRunning ? firstRunning.getUptime() : 0,
       totalRestartCount: this.totalRestartCount,
       totalErrorCount: this.totalErrorCount,
-      currentCodec: this.currentCodec,
-      currentBitrate: this.currentBitrate,
-      currentResolution: this.currentResolution,
-      currentFps: this.currentFps,
-      currentPreset: this.currentPreset,
+      currentCodec: firstRunning?.codec || "",
+      currentBitrate: firstRunning?.bitrate || "",
+      currentResolution: firstRunning?.resolution || "",
+      currentFps: firstRunning?.fps || "",
+      currentPreset: firstRunning?.preset || "",
     };
   }
 
-  getEncoderUptime() {
-    if (this.status === "running" && this.startTime > 0) {
-      return Math.floor((Date.now() - this.startTime) / 1000);
-    }
-    return 0;
-  }
-
   isRunning() {
-    return this.status === "running" && this.process !== null;
+    return Array.from(this.processes.values()).some(
+      (p) => p.status === "running",
+    );
   }
 }
 
-// export const ffmpegManager = new FFmpegManager();
 declare global {
   var ffmpegManager: FFmpegManager | undefined;
 }
