@@ -76,20 +76,16 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
         console.log(`[HWACCEL] Encoder found`);
         console.log(`[HWACCEL] Running validation test`);
         try {
-          const { stderr } = await execAsync(`ffmpeg ${args.join(" ")}`);
-          if (encoder.includes("nvenc") && stderr.includes("Cannot load libcuda.so.1")) {
-            console.log(`[HWACCEL] Validation FAILED\nReason: Cannot load libcuda.so.1`);
-            capsRef.functional = false;
-            capsRef.reason = "Cannot load libcuda.so.1";
-          } else {
-            console.log(`[HWACCEL] Validation PASSED`);
-            capsRef.functional = true;
-          }
+          await execAsync(`ffmpeg ${args.join(" ")}`);
+          console.log(`[HWACCEL] Validation PASSED`);
+          capsRef.functional = true;
         } catch (e: any) {
-          const reason = e.message.split("\n")[0] || "Validation test failed";
-          console.log(`[HWACCEL] Validation FAILED\nReason: ${reason}`);
+          const exitCode = e.code !== undefined ? e.code : "unknown";
+          const stdout = e.stdout || "";
+          const stderr = e.stderr || e.message || "";
+          console.log(`[HWACCEL] Validation FAILED\nCommand: ffmpeg ${args.join(" ")}\nExit code: ${exitCode}\nStdout: ${stdout}\nStderr: ${stderr}`);
           capsRef.functional = false;
-          capsRef.reason = reason;
+          capsRef.reason = `Exit code ${exitCode}`;
         }
       } else {
         console.log(`[HWACCEL] Encoder not found`);
