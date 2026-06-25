@@ -46,8 +46,11 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
     // Device presence
     if (process.platform === "linux") {
       if (fs.existsSync("/dev/dri")) {
+        console.log("[HWACCEL] /dev/dri detected");
         caps.qsv.devicePresent = true;
         caps.vaapi.devicePresent = true;
+      } else {
+        console.log("[HWACCEL] /dev/dri not available");
       }
       if (fs.existsSync("/dev/nvidia0") || fs.existsSync("/dev/nvidiactl")) {
         caps.nvenc.devicePresent = true;
@@ -67,58 +70,38 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
     }
 
     // Validation testing
-    if (caps.qsv.encoderPresent && caps.qsv.devicePresent) {
-      try {
-        await execAsync("ffmpeg -f lavfi -i testsrc=size=128x128:rate=1 -t 1 -c:v h264_qsv -f null -");
-        caps.qsv.functional = true;
-      } catch (e: any) {
-        caps.qsv.functional = false;
-        caps.qsv.reason = "QSV test failed";
-      }
-    } else {
-       caps.qsv.reason = caps.qsv.encoderPresent ? "No Intel GPU detected" : "Encoder not found";
-    }
-
-    if (caps.nvenc.encoderPresent && caps.nvenc.devicePresent) {
-      try {
-        const { stderr } = await execAsync("ffmpeg -f lavfi -i testsrc=size=128x128:rate=1 -t 1 -c:v h264_nvenc -f null -");
-        if (stderr.includes("Cannot load libcuda.so.1")) {
-          caps.nvenc.functional = false;
-          caps.nvenc.reason = "Cannot load libcuda.so.1";
-        } else {
-          caps.nvenc.functional = true;
+    const testEncode = async (encoder: string, args: string[], capsRef: any) => {
+      console.log(`[HWACCEL] Checking encoder: ${encoder}`);
+      if (capsRef.encoderPresent) {
+        console.log(`[HWACCEL] Encoder found`);
+        console.log(`[HWACCEL] Running validation test`);
+        try {
+          const { stderr } = await execAsync(`ffmpeg ${args.join(" ")}`);
+          if (encoder.includes("nvenc") && stderr.includes("Cannot load libcuda.so.1")) {
+            console.log(`[HWACCEL] Validation FAILED\nReason: Cannot load libcuda.so.1`);
+            capsRef.functional = false;
+            capsRef.reason = "Cannot load libcuda.so.1";
+          } else {
+            console.log(`[HWACCEL] Validation PASSED`);
+            capsRef.functional = true;
+          }
+        } catch (e: any) {
+          const reason = e.message.split("\n")[0] || "Validation test failed";
+          console.log(`[HWACCEL] Validation FAILED\nReason: ${reason}`);
+          capsRef.functional = false;
+          capsRef.reason = reason;
         }
-      } catch (e: any) {
-        caps.nvenc.functional = false;
-        caps.nvenc.reason = "NVENC test failed";
+      } else {
+        console.log(`[HWACCEL] Encoder not found`);
+        capsRef.functional = false;
+        capsRef.reason = "Encoder not found";
       }
-    } else {
-       caps.nvenc.reason = caps.nvenc.encoderPresent ? "No NVIDIA GPU detected" : "Encoder not found";
-    }
+    };
 
-    if (caps.vaapi.encoderPresent && caps.vaapi.devicePresent) {
-      try {
-        await execAsync("ffmpeg -vaapi_device /dev/dri/renderD128 -f lavfi -i testsrc=size=128x128:rate=1 -t 1 -c:v h264_vaapi -f null -");
-        caps.vaapi.functional = true;
-      } catch (e: any) {
-        caps.vaapi.functional = false;
-        caps.vaapi.reason = "VAAPI test failed";
-      }
-    } else {
-       caps.vaapi.reason = caps.vaapi.encoderPresent ? "No VAAPI device detected" : "Encoder not found";
-    }
-
-    if (caps.amf.encoderPresent && caps.amf.devicePresent) {
-      try {
-        await execAsync("ffmpeg -f lavfi -i testsrc=size=128x128:rate=1 -t 1 -c:v h264_amf -f null -");
-        caps.amf.functional = true;
-      } catch (e: any) {
-        caps.amf.functional = false;
-        caps.amf.reason = "AMF test failed";
-      }
-    } else {
-       caps.amf.reason = caps.amf.encoderPresent ? "No AMD GPU detected" : "Encoder not found";
-    }
+    await testEncode("h264_qsv", ["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30", "-t", "1", "-c:v", "h264_qsv", "-f", "null", "-"], caps.qsv);
+    await testEncode("h264_nvenc", ["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30", "-t", "1", "-c:v", "h264_nvenc", "-f", "null", "-"], caps.nvenc);
+    await testEncode("h264_vaapi", ["-vaapi_device", "/dev/dri/renderD128", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=30", "-t", "1", "-c:v", "h264_vaapi", "-f", "null", "-"], caps.vaapi);
+    await testEncode("h264_amf", ["-f", "lavfi", "-i", "testsrc=size=640x360:rate=30", "-t", "1", "-c:v", "h264_amf", "-f", "null", "-"], caps.amf);
 
   } catch (error) {
     console.error("[HWACCEL] Failed to detect hardware capabilities via ffmpeg:", error);

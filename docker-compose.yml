@@ -51,6 +51,9 @@ services:
       # ── MediaMTX ────────────────────────────────────────────────────────
       - ./data/mediamtx/mediamtx.yml:/app/mediamtx.yml
 
+    devices:
+      - /dev/dri:/dev/dri
+
     # Resource limits (tune based on your server capacity)
     deploy:
       resources:
