@@ -26,4 +26,6 @@ export interface StreamSettings {
   preset?: string;
   bitrate?: string;
   outputResolution?: string;
+  encodingMode?: string;
+  actualEncoder?: string;
 }

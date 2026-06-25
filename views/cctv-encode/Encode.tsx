@@ -125,7 +125,24 @@ export default function Encode() {
     channels: "2",
     audioFilter: false,
     noiseReduction: false,
+    encodingMode: "auto",
   });
+
+  const [hwCaps, setHwCaps] = useState<any>(null);
+
+  const checkHardware = async (force = false) => {
+    try {
+      const res = await fetch(`/api/hwaccel${force ? "?force=true" : ""}`);
+      const data = await res.json();
+      setHwCaps(data);
+    } catch (err) {
+      console.error("Failed to check hardware capabilities", err);
+    }
+  };
+
+  useEffect(() => {
+    checkHardware();
+  }, []);
 
   const [nasConfig, setNasConfig] = useState<{
     storageMode: "stream" | "record";
@@ -908,7 +925,7 @@ Do you want to start encoding?`;
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="video-codec">Video Codec</Label>
                         <Select
@@ -926,6 +943,33 @@ Do you want to start encoding?`;
                           <SelectContent>
                             <SelectItem value="h264">H.264 (AVC)</SelectItem>
                             <SelectItem value="h265">H.265 (HEVC)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="encoding-mode">Encoding Mode</Label>
+                        <Select
+                          value={streamSettings.encodingMode}
+                          onValueChange={(val) =>
+                            setStreamSettings({
+                              ...streamSettings,
+                              encodingMode: val,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">
+                              Auto (Recommended)
+                            </SelectItem>
+                            <SelectItem value="hardware">
+                              Hardware Accelerated
+                            </SelectItem>
+                            <SelectItem value="software">
+                              Software Encoding
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -954,6 +998,89 @@ Do you want to start encoding?`;
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 border rounded-lg space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-sm">
+                            Hardware Acceleration
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            Detect available hardware encoders
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => checkHardware(true)}
+                        >
+                          Check Hardware Acceleration
+                        </Button>
+                      </div>
+                      {hwCaps && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            {hwCaps.qsv ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span className={hwCaps.qsv ? "" : "text-gray-500"}>
+                              Intel Quick Sync{" "}
+                              {hwCaps.qsv ? "Available" : "Not Found"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hwCaps.nvenc ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span
+                              className={hwCaps.nvenc ? "" : "text-gray-500"}
+                            >
+                              NVIDIA NVENC{" "}
+                              {hwCaps.nvenc ? "Available" : "Not Found"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hwCaps.vaapi ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span
+                              className={hwCaps.vaapi ? "" : "text-gray-500"}
+                            >
+                              VAAPI {hwCaps.vaapi ? "Available" : "Not Found"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hwCaps.amf ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span className={hwCaps.amf ? "" : "text-gray-500"}>
+                              AMD AMF {hwCaps.amf ? "Available" : "Not Found"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hwCaps.software ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span
+                              className={hwCaps.software ? "" : "text-gray-500"}
+                            >
+                              Software Encoding{" "}
+                              {hwCaps.software ? "Available" : "Not Found"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-4">
@@ -1699,8 +1826,12 @@ Do you want to start encoding?`;
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-                  <span className="font-medium capitalize">{encoderStatus}</span>
+                  <div
+                    className={`w-3 h-3 rounded-full ${getStatusColor()}`}
+                  ></div>
+                  <span className="font-medium capitalize">
+                    {encoderStatus}
+                  </span>
                 </div>
 
                 <div className="space-y-2">
@@ -1715,19 +1846,32 @@ Do you want to start encoding?`;
                   <div className="flex justify-between text-sm">
                     <span>Total Dropped:</span>
                     <span>
-                      {dropped.toLocaleString()} ({frames > 0 ? ((dropped / (frames + dropped)) * 100).toFixed(2) : "0.00"}%)
+                      {dropped.toLocaleString()} (
+                      {frames > 0
+                        ? ((dropped / (frames + dropped)) * 100).toFixed(2)
+                        : "0.00"}
+                      %)
                     </span>
                   </div>
                 </div>
 
                 {cameraStatuses && cameraStatuses.length > 0 && (
                   <div className="mt-4 pt-4 border-t space-y-3">
-                    <h4 className="text-sm font-semibold mb-2">Camera Processes</h4>
+                    <h4 className="text-sm font-semibold mb-2">
+                      Camera Processes
+                    </h4>
                     {cameraStatuses.map((cam, idx) => (
-                      <div key={idx} className="text-xs border rounded p-2 bg-gray-50 flex flex-col gap-1">
+                      <div
+                        key={idx}
+                        className="text-xs border rounded p-2 bg-gray-50 flex flex-col gap-1"
+                      >
                         <div className="flex justify-between font-semibold">
                           <span>{cam.name}</span>
-                          <span className={`capitalize ${cam.status === "running" ? "text-green-600" : "text-gray-500"}`}>{cam.status}</span>
+                          <span
+                            className={`capitalize ${cam.status === "running" ? "text-green-600" : "text-gray-500"}`}
+                          >
+                            {cam.status}
+                          </span>
                         </div>
                         <div className="flex justify-between text-gray-600">
                           <span>PID: {cam.pid || "N/A"}</span>
@@ -1735,11 +1879,14 @@ Do you want to start encoding?`;
                         </div>
                         <div className="flex justify-between text-gray-600">
                           <span>Codec: {cam.codec}</span>
-                          <span>Res: {cam.resolution}</span>
+                          <span>Encoder: {cam.actualEncoder || cam.codec}</span>
                         </div>
                         <div className="flex justify-between text-gray-600">
+                          <span>Res: {cam.resolution}</span>
                           <span>Outputs: {cam.activeOutputs}</span>
-                          <span>FPS: {cam.fps}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-600">
+                          <span>FPS: {cam.fps || "N/A"}</span>
                         </div>
                       </div>
                     ))}

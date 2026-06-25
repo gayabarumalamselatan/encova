@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { NasConfig, nasManager } from "./nas";
 import { EncoderStatus, Camera, Output, StreamSettings } from "./types/ffmpeg";
-
+import { resolveEncoder } from "./hwaccel";
 export class FFmpegProcess {
   public process: ChildProcessWithoutNullStreams | null = null;
   public logs: string[] = [];
@@ -18,6 +18,7 @@ export class FFmpegProcess {
   public resolution: string = "";
   public codec: string = "";
   public preset: string = "";
+  public actualEncoder: string = "";
   public activeOutputs: number = 0;
 
   constructor(
@@ -34,12 +35,18 @@ export class FFmpegProcess {
     if (this.process) throw new Error("Already running");
 
     const args: string[] = [];
-    const vcodec =
-      streamSettings?.videoCodec === "h265" ? "libx265" : "libx264";
-    const preset = streamSettings?.preset || "veryfast";
+    const encodingMode = streamSettings?.encodingMode || "auto";
+    const actualEncoder = resolveEncoder(streamSettings?.videoCodec || "h264", encodingMode);
+    this.actualEncoder = actualEncoder;
+    
+    let preset = streamSettings?.preset || "veryfast";
+    const isQsvEncoder = ["h264_qsv", "hevc_qsv", "av1_qsv"].includes(actualEncoder);
+    if (isQsvEncoder) {
+      preset = "none";
+    }
 
     this.codec = streamSettings?.videoCodec || "h264";
-    this.preset = preset;
+    this.preset = preset === "none" ? "none" : preset;
     this.bitrate = streamSettings?.bitrate || "unknown";
     this.resolution = streamSettings?.outputResolution || "same";
     this.fps = camera.fps || "unknown";
@@ -52,6 +59,16 @@ export class FFmpegProcess {
     // Default RTSP Transport to TCP
     if (camera.url.startsWith("rtsp://") && !args.includes("-rtsp_transport")) {
       args.push("-rtsp_transport", "tcp");
+    }
+
+    // Hardware acceleration arguments before -i
+    if (actualEncoder.includes("qsv")) {
+      args.push("-hwaccel", "qsv");
+      args.push("-hwaccel_output_format", "qsv");
+    } else if (actualEncoder.includes("nvenc")) {
+      args.push("-hwaccel", "cuda");
+    } else if (actualEncoder.includes("vaapi")) {
+      args.push("-vaapi_device", "/dev/dri/renderD128");
     }
 
     args.push("-i", camera.url);
@@ -75,19 +92,27 @@ export class FFmpegProcess {
       }
     }
 
-    const resArgs =
-      streamSettings?.outputResolution &&
-      streamSettings.outputResolution !== "same"
-        ? ["-s", streamSettings.outputResolution]
-        : [];
+    const resArgs: string[] = [];
+    let resizeLog = "none";
+    if (streamSettings?.outputResolution && streamSettings.outputResolution !== "same") {
+      const res = streamSettings.outputResolution;
+      const [w, h] = res.split("x");
+      if (isQsvEncoder && w && h) {
+        resArgs.push("-vf", `vpp_qsv=w=${w}:h=${h}`);
+        resizeLog = `QSV VPP\nGenerated Filter: vpp_qsv=w=${w}:h=${h}`;
+      } else {
+        resArgs.push("-s", res);
+        resizeLog = `Software (-s ${res})`;
+      }
+    }
 
     const fpsArgs = camera.fps ? ["-r", camera.fps] : [];
 
+    args.push("-c:v", actualEncoder);
+    if (preset !== "none") {
+      args.push("-preset", preset);
+    }
     args.push(
-      "-c:v",
-      vcodec,
-      "-preset",
-      preset,
       ...resArgs,
       ...fpsArgs,
       ...bitrateArgs,
@@ -183,7 +208,9 @@ export class FFmpegProcess {
 
     this.activeOutputs = validOutputsCount;
 
-    const logHeader = `[Camera ${camera.id}] Starting ffmpeg with tee outputs: ${teeOutputs.length}`;
+    const commandStr = `ffmpeg ${args.join(" ")}`;
+    const hwaccelType = actualEncoder.includes("qsv") ? "qsv" : actualEncoder.includes("nvenc") ? "cuda" : actualEncoder.includes("vaapi") ? "vaapi" : "none";
+    const logHeader = `[Camera ${camera.id}] Starting ffmpeg with tee outputs: ${teeOutputs.length}\nSelected Encoder: ${actualEncoder}\nApplied Preset: ${preset}\nHardware Acceleration: ${hwaccelType}\nResize Mode: ${resizeLog}\nGenerated Command:\n${commandStr}`;
     console.log(logHeader);
 
     this.process = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -337,6 +364,7 @@ class FFmpegManager {
       logs: p.logs.slice(-50),
       pid: p.process?.pid,
       codec: p.codec,
+      actualEncoder: p.actualEncoder,
       resolution: p.resolution,
       bitrate: p.bitrate,
       activeOutputs: p.activeOutputs,

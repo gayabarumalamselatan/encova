@@ -17,7 +17,7 @@
       "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch2/0",
       "resolution": "1920x1080",
       "fps": "30",
-      "enabled": true
+      "enabled": false
     },
     {
       "id": 3,
@@ -26,7 +26,7 @@
       "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch3/0",
       "resolution": "1920x1080",
       "fps": "30",
-      "enabled": true
+      "enabled": false
     }
   ],
   "outputs": [
@@ -43,7 +43,7 @@
       "id": 2,
       "type": "rtsp",
       "url": "rtsp://127.0.0.1:8554/live/stream2",
-      "enabled": true,
+      "enabled": false,
       "cameraMappings": [
         2
       ]
@@ -52,7 +52,7 @@
       "id": 3,
       "type": "rtsp",
       "url": "rtsp://127.0.0.1:8554/live/stream3",
-      "enabled": true,
+      "enabled": false,
       "cameraMappings": [
         3
       ]
@@ -63,7 +63,7 @@
     "timeout": "10",
     "reconnect": "5",
     "videoCodec": "h265",
-    "preset": "ultrafast",
+    "preset": "fast",
     "bitrate": "128k",
     "outputResolution": "1280x720",
     "keyframe": "2",
@@ -74,7 +74,8 @@
     "sampleRate": "44100",
     "channels": "2",
     "audioFilter": false,
-    "noiseReduction": false
+    "noiseReduction": false,
+    "encodingMode": "hardware"
   },
   "nasConfig": {
     "storageMode": "stream",
