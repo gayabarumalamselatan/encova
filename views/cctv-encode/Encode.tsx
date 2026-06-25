@@ -1019,66 +1019,59 @@ Do you want to start encoding?`;
                         </Button>
                       </div>
                       {hwCaps && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            {hwCaps.qsv ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-gray-400" />
-                            )}
-                            <span className={hwCaps.qsv ? "" : "text-gray-500"}>
-                              Intel Quick Sync{" "}
-                              {hwCaps.qsv ? "Available" : "Not Found"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {hwCaps.nvenc ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-gray-400" />
-                            )}
-                            <span
-                              className={hwCaps.nvenc ? "" : "text-gray-500"}
-                            >
-                              NVIDIA NVENC{" "}
-                              {hwCaps.nvenc ? "Available" : "Not Found"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {hwCaps.vaapi ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-gray-400" />
-                            )}
-                            <span
-                              className={hwCaps.vaapi ? "" : "text-gray-500"}
-                            >
-                              VAAPI {hwCaps.vaapi ? "Available" : "Not Found"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {hwCaps.amf ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-gray-400" />
-                            )}
-                            <span className={hwCaps.amf ? "" : "text-gray-500"}>
-                              AMD AMF {hwCaps.amf ? "Available" : "Not Found"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {hwCaps.software ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-gray-400" />
-                            )}
-                            <span
-                              className={hwCaps.software ? "" : "text-gray-500"}
-                            >
-                              Software Encoding{" "}
-                              {hwCaps.software ? "Available" : "Not Found"}
-                            </span>
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
+                          {[
+                            { key: 'qsv', name: 'Intel Quick Sync' },
+                            { key: 'nvenc', name: 'NVIDIA NVENC' },
+                            { key: 'vaapi', name: 'VAAPI' },
+                            { key: 'amf', name: 'AMD AMF' },
+                          ].map(hw => {
+                            const status = hwCaps[hw.key];
+                            if (!status) return null;
+                            const isAvail = status.functional;
+                            return (
+                              <div key={hw.key} className="flex flex-col p-3 border rounded bg-white gap-2">
+                                <div className="flex items-center gap-2">
+                                  {isAvail ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <AlertCircle className="w-4 h-4 text-gray-400" />
+                                  )}
+                                  <span className={`font-semibold ${isAvail ? "text-green-700" : "text-gray-500"}`}>
+                                    {hw.name} {isAvail ? "Available" : "Unavailable"}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-600 grid grid-cols-[120px_1fr] gap-y-1">
+                                  <span>Encoder Found:</span>
+                                  <span>{status.encoderPresent ? "Yes" : "No"}</span>
+                                  <span>Hardware Detected:</span>
+                                  <span>{status.devicePresent ? "Yes" : "No"}</span>
+                                  <span>Validation Test:</span>
+                                  <span className={status.functional ? "text-green-600" : "text-red-600"}>{status.functional ? "Passed" : "Failed"}</span>
+                                  {!status.functional && status.reason && (
+                                    <>
+                                      <span className="text-red-500">Reason:</span>
+                                      <span className="text-red-500 truncate" title={status.reason}>{status.reason}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {hwCaps.software && (
+                            <div className="flex flex-col p-3 border rounded bg-white gap-2">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                <span className="font-semibold text-green-700">
+                                  Software Encoding Available
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-600 grid grid-cols-[120px_1fr] gap-y-1">
+                                <span>Validation Test:</span>
+                                <span className="text-green-600">Passed</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
