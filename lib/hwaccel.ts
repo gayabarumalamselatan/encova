@@ -75,15 +75,28 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
       if (capsRef.encoderPresent) {
         console.log(`[HWACCEL] Encoder found`);
         console.log(`[HWACCEL] Running validation test`);
+        const commandStr = `ffmpeg ${args.join(" ")}`;
+        const cwd = process.cwd();
+        const pathEnv = process.env.PATH || "unknown";
+        const startTime = Date.now();
+
         try {
-          await execAsync(`ffmpeg ${args.join(" ")}`);
+          const { stdout, stderr } = await execAsync(commandStr);
+          const duration = Date.now() - startTime;
+          
+          const logMsg = `[HWACCEL] Testing ${encoder}\n\nCommand:\n${commandStr}\n\nWorking Directory:\n${cwd}\n\nPATH:\n${pathEnv}\n\nExit Code:\n0\n\nSignal:\nnull\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}\n\nDuration:\n${duration}ms`;
+          console.log(logMsg);
           console.log(`[HWACCEL] Validation PASSED`);
           capsRef.functional = true;
         } catch (e: any) {
+          const duration = Date.now() - startTime;
           const exitCode = e.code !== undefined ? e.code : "unknown";
+          const signal = e.signal !== undefined ? e.signal : "null";
           const stdout = e.stdout || "";
           const stderr = e.stderr || e.message || "";
-          console.log(`[HWACCEL] Validation FAILED\nCommand: ffmpeg ${args.join(" ")}\nExit code: ${exitCode}\nStdout: ${stdout}\nStderr: ${stderr}`);
+          
+          const logMsg = `[HWACCEL] Validation FAILED\n\nTesting ${encoder}\n\nCommand:\n${commandStr}\n\nWorking Directory:\n${cwd}\n\nPATH:\n${pathEnv}\n\nExit Code:\n${exitCode}\n\nSignal:\n${signal}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}\n\nDuration:\n${duration}ms`;
+          console.log(logMsg);
           capsRef.functional = false;
           capsRef.reason = `Exit code ${exitCode}`;
         }
