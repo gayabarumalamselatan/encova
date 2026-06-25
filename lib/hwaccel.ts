@@ -69,6 +69,31 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
       caps.amf.devicePresent = caps.amf.encoderPresent;
     }
 
+    if (process.platform === "linux") {
+      try {
+        const { stdout: idOut } = await execAsync("id");
+        console.log(`[HWACCEL] Current Identity:\n${idOut.trim()}`);
+        if (!idOut.includes("render")) {
+          console.log(`[HWACCEL] WARNING: 'render' group does not exist or user is not in it.`);
+        }
+        
+        if (fs.existsSync("/dev/dri")) {
+          const { stdout: lsOut } = await execAsync("ls -la /dev/dri");
+          console.log(`[HWACCEL] /dev/dri contents:\n${lsOut.trim()}`);
+          
+          if (fs.existsSync("/dev/dri/renderD128")) {
+            let canRead = false;
+            let canWrite = false;
+            try { await execAsync("test -r /dev/dri/renderD128"); canRead = true; } catch (e) {}
+            try { await execAsync("test -w /dev/dri/renderD128"); canWrite = true; } catch (e) {}
+            console.log(`[HWACCEL] /dev/dri/renderD128 permissions: readable=${canRead}, writable=${canWrite}`);
+          }
+        }
+      } catch (e) {
+        console.log(`[HWACCEL] Identity/permission check failed:`, e);
+      }
+    }
+
     // Validation testing
     const testEncode = async (encoder: string, args: string[], capsRef: any) => {
       console.log(`[HWACCEL] Checking encoder: ${encoder}`);
@@ -98,7 +123,11 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
           const logMsg = `[HWACCEL] Validation FAILED\n\nTesting ${encoder}\n\nCommand:\n${commandStr}\n\nWorking Directory:\n${cwd}\n\nPATH:\n${pathEnv}\n\nExit Code:\n${exitCode}\n\nSignal:\n${signal}\n\nSTDOUT:\n${stdout}\n\nSTDERR:\n${stderr}\n\nDuration:\n${duration}ms`;
           console.log(logMsg);
           capsRef.functional = false;
-          capsRef.reason = `Exit code ${exitCode}`;
+          let reasonStr = `Exit code ${exitCode}`;
+          if (stderr.includes("Error initializing an internal MFX session") || stderr.includes("unsupported (-3)") || stderr.includes("Permission denied")) {
+            reasonStr = "GPU device permission issue";
+          }
+          capsRef.reason = reasonStr;
         }
       } else {
         console.log(`[HWACCEL] Encoder not found`);

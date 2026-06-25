@@ -54,6 +54,10 @@ services:
     devices:
       - /dev/dri:/dev/dri
 
+    group_add:
+      - video
+      - render
+
     # Resource limits (tune based on your server capacity)
     deploy:
       resources:
