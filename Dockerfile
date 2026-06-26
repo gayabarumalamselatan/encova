@@ -96,6 +96,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+ENV LIBVA_DRIVER_NAME=iHD
+ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+
 # ── 1. Create a non-root user FIRST ──────────────────────────────────────────
 # This must happen before any COPY --chown commands.
 # We use --create-home because LibreOffice needs a writable home directory
@@ -117,6 +120,14 @@ ENV HOME=/home/nextjs
 # symlinks (like libblas.so.3), and configurations are correctly set up.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    intel-media-va-driver \
+    libva2 \
+    libva-drm2 \
+    libva-x11-2 \
+    libigdgmm12 \
+    libmfx1 \
+    libvpl2 \
+    vainfo \
     libreoffice \
     ghostscript \
     fonts-liberation \
