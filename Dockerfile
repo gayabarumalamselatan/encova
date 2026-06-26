@@ -231,6 +231,7 @@ EXPOSE 8554 1935 8888 8000
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 # Use a startup script (created below via COPY) so we can start both
 # the Next.js server and MediaMTX as background processes.
-COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 
-CMD ["sh", "./docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
