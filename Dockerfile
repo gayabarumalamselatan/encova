@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     xz-utils \
+    file \
     # LibreOffice runtime deps
     fonts-liberation \
     fontconfig \
@@ -30,13 +31,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # --- Install Jellyfin FFmpeg ---
 ARG JELLYFIN_FFMPEG_VERSION=7.1.4-3
-RUN echo "Installing Jellyfin FFmpeg ${JELLYFIN_FFMPEG_VERSION}..." && \
+RUN set -e && \
+    echo "Installing Jellyfin FFmpeg ${JELLYFIN_FFMPEG_VERSION}..." && \
     wget -qO /tmp/ffmpeg.tar.xz \
         "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG_VERSION}/jellyfin-ffmpeg_${JELLYFIN_FFMPEG_VERSION}_portable_linux64-gpl.tar.xz" && \
+    echo "=== Verifying Archive ===" && \
+    file /tmp/ffmpeg.tar.xz && \
+    tar -tf /tmp/ffmpeg.tar.xz | head -50 && \
     mkdir -p /usr/local/ffmpeg && \
     tar -xf /tmp/ffmpeg.tar.xz -C /usr/local/ffmpeg --strip-components=1 && \
     rm /tmp/ffmpeg.tar.xz && \
-    echo "Jellyfin FFmpeg installed successfully."
+    echo "=== Extracted Layout ===" && \
+    find /usr/local/ffmpeg -maxdepth 3 && \
+    echo "=== Verify system-deps stage ===" && \
+    ls -lah /usr/local/ffmpeg && \
+    find /usr/local/ffmpeg -type f && \
+    echo "Jellyfin FFmpeg downloaded successfully."
 
 # --- Install MediaMTX ---
 # MediaMTX is not in apt repos; download the latest release binary.
@@ -149,14 +159,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy Jellyfin FFmpeg
 COPY --from=system-deps /usr/local/ffmpeg /usr/local/ffmpeg
-RUN ln -s /usr/local/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
-    ln -s /usr/local/ffmpeg/ffprobe /usr/local/bin/ffprobe && \
-    echo "=== Verify Jellyfin FFmpeg ===" && \
+RUN set -e && \
+    echo "=== Verifying COPY ===" && \
+    find /usr/local/ffmpeg && \
+    [ "$(ls -A /usr/local/ffmpeg)" ] || (echo "Error: /usr/local/ffmpeg is empty!" && exit 1) && \
+    if [ -f /usr/local/ffmpeg/ffmpeg ]; then \
+        ln -s /usr/local/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
+        ln -s /usr/local/ffmpeg/ffprobe /usr/local/bin/ffprobe; \
+    elif [ -f /usr/local/ffmpeg/bin/ffmpeg ]; then \
+        ln -s /usr/local/ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg && \
+        ln -s /usr/local/ffmpeg/bin/ffprobe /usr/local/bin/ffprobe; \
+    else \
+        echo "Error: ffmpeg binary not found in /usr/local/ffmpeg!" && exit 1; \
+    fi && \
+    echo "=== Verify Installation ===" && \
+    which ffmpeg && \
     ffmpeg -version && \
-    echo "=== Enabled Encoders (QSV/VAAPI) ===" && \
-    ffmpeg -encoders | grep -iE "qsv|vaapi" || true && \
-    echo "=== Hardware Accelerators ===" && \
-    ffmpeg -hwaccels | grep -iE "qsv|vaapi" || true
+    which ffprobe && \
+    ffprobe -version && \
+    echo "=== Verify Intel Hardware Support ===" && \
+    ffmpeg -hwaccels && \
+    echo "=== Encoders ===" && \
+    ffmpeg -encoders | grep -Ei "qsv|vaapi" || true && \
+    echo "=== Decoders ===" && \
+    ffmpeg -decoders | grep -Ei "qsv" || true && \
+    echo "=== vainfo ===" && \
+    vainfo --display drm || true
 
 # Copy MediaMTX (it's a standalone binary, safe to copy)
 COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
