@@ -39,10 +39,18 @@ RUN set -e && \
     file /tmp/ffmpeg.tar.xz && \
     tar -tf /tmp/ffmpeg.tar.xz | head -50 && \
     mkdir -p /usr/local/ffmpeg && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /usr/local/ffmpeg --strip-components=1 && \
+    tar -xf /tmp/ffmpeg.tar.xz -C /usr/local/ffmpeg && \
     rm /tmp/ffmpeg.tar.xz && \
     echo "=== Extracted Layout ===" && \
     find /usr/local/ffmpeg -maxdepth 3 && \
+    FFMPEG_BIN=$(find /usr/local/ffmpeg -type f -name "ffmpeg" | head -n 1) && \
+    FFPROBE_BIN=$(find /usr/local/ffmpeg -type f -name "ffprobe" | head -n 1) && \
+    if [ -z "$FFMPEG_BIN" ] || [ -z "$FFPROBE_BIN" ]; then \
+        echo "Error: ffmpeg or ffprobe not found in archive!" && exit 1; \
+    fi && \
+    echo "Detected ffmpeg at: $FFMPEG_BIN" && \
+    echo "Detected ffprobe at: $FFPROBE_BIN" && \
+    chmod +x "$FFMPEG_BIN" "$FFPROBE_BIN" && \
     echo "=== Verify system-deps stage ===" && \
     ls -lah /usr/local/ffmpeg && \
     find /usr/local/ffmpeg -type f && \
@@ -161,17 +169,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=system-deps /usr/local/ffmpeg /usr/local/ffmpeg
 RUN set -e && \
     echo "=== Verifying COPY ===" && \
-    find /usr/local/ffmpeg && \
+    find /usr/local/ffmpeg -maxdepth 3 && \
+    ls -lah /usr/local/ffmpeg && \
     [ "$(ls -A /usr/local/ffmpeg)" ] || (echo "Error: /usr/local/ffmpeg is empty!" && exit 1) && \
-    if [ -f /usr/local/ffmpeg/ffmpeg ]; then \
-        ln -s /usr/local/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
-        ln -s /usr/local/ffmpeg/ffprobe /usr/local/bin/ffprobe; \
-    elif [ -f /usr/local/ffmpeg/bin/ffmpeg ]; then \
-        ln -s /usr/local/ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg && \
-        ln -s /usr/local/ffmpeg/bin/ffprobe /usr/local/bin/ffprobe; \
-    else \
-        echo "Error: ffmpeg binary not found in /usr/local/ffmpeg!" && exit 1; \
+    FFMPEG_BIN=$(find /usr/local/ffmpeg -type f -name "ffmpeg" | head -n 1) && \
+    FFPROBE_BIN=$(find /usr/local/ffmpeg -type f -name "ffprobe" | head -n 1) && \
+    if [ -z "$FFMPEG_BIN" ] || [ -z "$FFPROBE_BIN" ]; then \
+        echo "Error: ffmpeg or ffprobe not found in /usr/local/ffmpeg!" && exit 1; \
     fi && \
+    echo "Creating symlink for ffmpeg at: $FFMPEG_BIN" && \
+    ln -s "$FFMPEG_BIN" /usr/local/bin/ffmpeg && \
+    echo "Creating symlink for ffprobe at: $FFPROBE_BIN" && \
+    ln -s "$FFPROBE_BIN" /usr/local/bin/ffprobe && \
     echo "=== Verify Installation ===" && \
     which ffmpeg && \
     ffmpeg -version && \
@@ -180,7 +189,7 @@ RUN set -e && \
     echo "=== Verify Intel Hardware Support ===" && \
     ffmpeg -hwaccels && \
     echo "=== Encoders ===" && \
-    ffmpeg -encoders | grep -Ei "qsv|vaapi" || true && \
+    ffmpeg -encoders | grep -Ei "qsv|vaapi|nvenc" || true && \
     echo "=== Decoders ===" && \
     ffmpeg -decoders | grep -Ei "qsv" || true && \
     echo "=== vainfo ===" && \
