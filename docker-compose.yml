@@ -54,9 +54,7 @@ services:
     devices:
       - /dev/dri:/dev/dri
 
-    # Use keep-groups if supported by Docker. Otherwise use environment-variable based GID.
-    group_add:
-      - keep-groups
+    # Render group permissions are handled dynamically at startup
 
     # Resource limits (tune based on your server capacity)
     deploy:

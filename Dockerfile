@@ -162,6 +162,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cifs-utils \
     nfs-common \
     curl \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -216,7 +217,9 @@ COPY --chown=nextjs:nodejs settings.json     ./settings/settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 COPY --chown=nextjs:nodejs mediamtx.yml     ./mediamtx.yml
 
-USER nextjs
+# We do not switch to USER nextjs here.
+# The container must start as root to handle dynamic GID mapping for /dev/dri.
+# docker-entrypoint.sh will drop privileges to nextjs using gosu.
 
 # Expose Next.js port
 EXPOSE 3000

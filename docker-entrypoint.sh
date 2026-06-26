@@ -1,14 +1,45 @@
 #!/bin/sh
+set -e
+
 # =============================================================================
 # docker-entrypoint.sh
 # Starts all required background processes, then runs the Next.js server
 # in the foreground so Docker can manage the container lifecycle correctly.
 # =============================================================================
 
-set -e
+# If we are root, configure permissions and drop privileges
+if [ "$(id -u)" = '0' ]; then
+    echo "============================================"
+    echo "  Configuring Hardware Permissions..."
+    echo "============================================"
+
+    if [ -e /dev/dri/renderD128 ]; then
+        RENDER_GID=$(stat -c '%g' /dev/dri/renderD128)
+        echo "[info] Found /dev/dri/renderD128 with GID $RENDER_GID"
+        
+        if ! getent group "$RENDER_GID" >/dev/null 2>&1; then
+            echo "[info] Group with GID $RENDER_GID does not exist, creating 'render_dynamic'..."
+            groupadd -g "$RENDER_GID" render_dynamic
+        else
+            EXISTING_GROUP=$(getent group "$RENDER_GID" | cut -d: -f1)
+            echo "[info] Group with GID $RENDER_GID already exists as '$EXISTING_GROUP'."
+        fi
+
+        echo "[info] Adding nextjs to group with GID $RENDER_GID..."
+        usermod -aG "$RENDER_GID" nextjs
+    else
+        echo "[warn] /dev/dri/renderD128 not found. Hardware acceleration may not work."
+    fi
+
+    # Switch to nextjs user to run the rest of the script
+    echo "[info] Switching to 'nextjs' user..."
+    exec gosu nextjs "$0" "$@"
+fi
 
 echo "============================================"
 echo "  Encova Production Container Starting..."
+echo "  Running as user: $(id -un) (UID: $(id -u))"
+echo "  Groups: $(id -Gn)"
 echo "============================================"
 
 # ── Verify system dependencies ────────────────────────────────────────────────
@@ -51,6 +82,12 @@ echo "Result:"
 if command -v vainfo > /dev/null 2>&1; then
     if vainfo --display drm > /dev/null 2>&1; then
         echo "Intel Quick Sync READY"
+        echo "Running QSV encode test..."
+        if ffmpeg -v error -init_hw_device vaapi=va:/dev/dri/renderD128 -f lavfi -i testsrc=size=1280x720:rate=30 -vf format=nv12,hwupload -c:v h264_qsv -f null - -t 1; then
+            echo "QSV encode test PASSED"
+        else
+            echo "QSV encode test FAILED"
+        fi
     else
         echo "Intel Quick Sync NOT READY"
     fi
