@@ -16,18 +16,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice \
     # Ghostscript (for PDF processing)
     ghostscript \
-    # FFmpeg (for CCTV encoding/streaming)
-    ffmpeg \
     # Required utilities
     curl \
     ca-certificates \
     wget \
     unzip \
+    xz-utils \
     # LibreOffice runtime deps
     fonts-liberation \
     fontconfig \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# --- Install Jellyfin FFmpeg ---
+ARG JELLYFIN_FFMPEG_VERSION=7.1.4-3
+RUN echo "Installing Jellyfin FFmpeg ${JELLYFIN_FFMPEG_VERSION}..." && \
+    wget -qO /tmp/ffmpeg.tar.xz \
+        "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG_VERSION}/jellyfin-ffmpeg_${JELLYFIN_FFMPEG_VERSION}_portable_linux64-gpl.tar.xz" && \
+    mkdir -p /usr/local/ffmpeg && \
+    tar -xf /tmp/ffmpeg.tar.xz -C /usr/local/ffmpeg --strip-components=1 && \
+    rm /tmp/ffmpeg.tar.xz && \
+    echo "Jellyfin FFmpeg installed successfully."
 
 # --- Install MediaMTX ---
 # MediaMTX is not in apt repos; download the latest release binary.
@@ -119,7 +128,6 @@ ENV HOME=/home/nextjs
 # We install these directly in the runner stage to ensure all shared libraries,
 # symlinks (like libblas.so.3), and configurations are correctly set up.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     intel-media-va-driver \
     libva2 \
     libva-drm2 \
@@ -138,6 +146,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy Jellyfin FFmpeg
+COPY --from=system-deps /usr/local/ffmpeg /usr/local/ffmpeg
+RUN ln -s /usr/local/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
+    ln -s /usr/local/ffmpeg/ffprobe /usr/local/bin/ffprobe && \
+    echo "=== Verify Jellyfin FFmpeg ===" && \
+    ffmpeg -version && \
+    echo "=== Enabled Encoders (QSV/VAAPI) ===" && \
+    ffmpeg -encoders | grep -iE "qsv|vaapi" || true && \
+    echo "=== Hardware Accelerators ===" && \
+    ffmpeg -hwaccels | grep -iE "qsv|vaapi" || true
 
 # Copy MediaMTX (it's a standalone binary, safe to copy)
 COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
