@@ -1,64 +1,29 @@
 # =============================================================================
 # Stage 1: System Dependencies Installer
 # =============================================================================
-# We use a dedicated stage to install heavy system tools (LibreOffice, Ghostscript,
-# FFmpeg, MediaMTX). This layer is cached separately from the app code, so
-# system deps are only re-installed when this stage changes.
+# We use a dedicated stage to install heavy system tools and build MediaMTX.
 FROM node:22-bookworm-slim AS system-deps
 
 # Avoid interactive prompts during apt install
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system-level dependencies with idempotent checks via apt-get
-# (apt-get is idempotent by default; re-running is always safe)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # LibreOffice (for DOCX/XLSX compression)
     libreoffice \
-    # Ghostscript (for PDF processing)
     ghostscript \
-    # Required utilities
     curl \
     ca-certificates \
     wget \
     unzip \
     xz-utils \
     file \
-    # LibreOffice runtime deps
     fonts-liberation \
     fontconfig \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Install Jellyfin FFmpeg ---
-ARG JELLYFIN_FFMPEG_VERSION=7.1.4-3
-RUN set -e && \
-    echo "Installing Jellyfin FFmpeg ${JELLYFIN_FFMPEG_VERSION}..." && \
-    wget -qO /tmp/ffmpeg.tar.xz \
-        "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v${JELLYFIN_FFMPEG_VERSION}/jellyfin-ffmpeg_${JELLYFIN_FFMPEG_VERSION}_portable_linux64-gpl.tar.xz" && \
-    echo "=== Verifying Archive ===" && \
-    file /tmp/ffmpeg.tar.xz && \
-    tar -tf /tmp/ffmpeg.tar.xz | head -50 && \
-    mkdir -p /usr/local/ffmpeg && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /usr/local/ffmpeg && \
-    rm /tmp/ffmpeg.tar.xz && \
-    echo "=== Extracted Layout ===" && \
-    find /usr/local/ffmpeg -maxdepth 3 && \
-    FFMPEG_BIN=$(find /usr/local/ffmpeg -type f -name "ffmpeg" | head -n 1) && \
-    FFPROBE_BIN=$(find /usr/local/ffmpeg -type f -name "ffprobe" | head -n 1) && \
-    if [ -z "$FFMPEG_BIN" ] || [ -z "$FFPROBE_BIN" ]; then \
-        echo "Error: ffmpeg or ffprobe not found in archive!" && exit 1; \
-    fi && \
-    echo "Detected ffmpeg at: $FFMPEG_BIN" && \
-    echo "Detected ffprobe at: $FFPROBE_BIN" && \
-    chmod +x "$FFMPEG_BIN" "$FFPROBE_BIN" && \
-    echo "=== Verify system-deps stage ===" && \
-    ls -lah /usr/local/ffmpeg && \
-    find /usr/local/ffmpeg -type f && \
-    echo "Jellyfin FFmpeg downloaded successfully."
-
 # --- Install MediaMTX ---
 # MediaMTX is not in apt repos; download the latest release binary.
-# The script checks if it's already installed before downloading (idempotent).
 ARG MEDIAMTX_VERSION=v1.9.1
 ARG MEDIAMTX_ARCH=linux_amd64
 
@@ -77,18 +42,13 @@ RUN if ! command -v mediamtx > /dev/null 2>&1; then \
 # =============================================================================
 # Stage 2: Node.js Dependency Installer (deps)
 # =============================================================================
-# A clean node image for installing npm packages. Separating this from the
-# builder avoids re-running npm install when only source code changes.
 FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
 
-# Copy only manifest files first to leverage Docker layer cache.
-# npm install will only re-run when package.json or package-lock.json changes.
 COPY package.json package-lock.json* ./
 
 # Install all dependencies (including devDeps needed for the build).
-# --legacy-peer-deps is required by this project.
 RUN npm install --legacy-peer-deps
 
 # =============================================================================
@@ -98,17 +58,12 @@ FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Copy node_modules from the deps stage
 COPY --from=deps /app/node_modules ./node_modules
-
-# Copy the full source tree
 COPY . .
 
-# Set NODE_ENV to production for an optimized build
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the Next.js app
 RUN npm run build
 
 # =============================================================================
@@ -127,24 +82,16 @@ ENV LIBVA_DRIVER_NAME=iHD
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 
 # ── 1. Create a non-root user FIRST ──────────────────────────────────────────
-# This must happen before any COPY --chown commands.
-# We use --create-home because LibreOffice needs a writable home directory
-# for its user profile and cache (.cache/dconf).
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs --create-home nextjs
 
-# Ensure the home directory and its critical subdirectories are writable.
-# This fixes 'dconf' and other system library permission errors.
 RUN mkdir -p /home/nextjs/.config /home/nextjs/.cache \
     && chown -R nextjs:nodejs /home/nextjs
 
 ENV HOME=/home/nextjs
 
-
-
-# ── 2. Install Runtime Dependencies ──────────────────────────────────────────
-# We install these directly in the runner stage to ensure all shared libraries,
-# symlinks (like libblas.so.3), and configurations are correctly set up.
+# ── 2. Install Runtime Dependencies + Official Repos FFmpeg ──────────────────
+# Installing 'ffmpeg' through apt-get prevents 'vaMapBuffer2' symbol mismatches.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     intel-media-va-driver \
     libva2 \
@@ -154,6 +101,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmfx1 \
     libvpl2 \
     vainfo \
+    ffmpeg \
     libreoffice \
     ghostscript \
     fonts-liberation \
@@ -166,49 +114,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Jellyfin FFmpeg
-COPY --from=system-deps /usr/local/ffmpeg /usr/local/ffmpeg
+# ── 3. Verify Hardware and FFmpeg Installation ───────────────────────────────
 RUN set -e && \
-    echo "=== Verifying COPY ===" && \
-    find /usr/local/ffmpeg -maxdepth 3 && \
-    ls -lah /usr/local/ffmpeg && \
-    [ "$(ls -A /usr/local/ffmpeg)" ] || (echo "Error: /usr/local/ffmpeg is empty!" && exit 1) && \
-    FFMPEG_BIN=$(find /usr/local/ffmpeg -type f -name "ffmpeg" | head -n 1) && \
-    FFPROBE_BIN=$(find /usr/local/ffmpeg -type f -name "ffprobe" | head -n 1) && \
-    if [ -z "$FFMPEG_BIN" ] || [ -z "$FFPROBE_BIN" ]; then \
-        echo "Error: ffmpeg or ffprobe not found in /usr/local/ffmpeg!" && exit 1; \
-    fi && \
-    echo "Creating symlink for ffmpeg at: $FFMPEG_BIN" && \
-    ln -s "$FFMPEG_BIN" /usr/local/bin/ffmpeg && \
-    echo "Creating symlink for ffprobe at: $FFPROBE_BIN" && \
-    ln -s "$FFPROBE_BIN" /usr/local/bin/ffprobe && \
     echo "=== Verify Installation ===" && \
     which ffmpeg && \
     ffmpeg -version && \
-    which ffprobe && \
-    ffprobe -version && \
     echo "=== Verify Intel Hardware Support ===" && \
     ffmpeg -hwaccels && \
     echo "=== Encoders ===" && \
-    ffmpeg -encoders | grep -Ei "qsv|vaapi|nvenc" || true && \
-    echo "=== Decoders ===" && \
-    ffmpeg -decoders | grep -Ei "qsv" || true && \
+    ffmpeg -encoders | grep -Ei "vaapi" || true && \
     echo "=== vainfo ===" && \
     vainfo --display drm || true
 
-# Copy MediaMTX (it's a standalone binary, safe to copy)
+# Copy MediaMTX from system-deps stage
 COPY --from=system-deps /usr/local/bin/mediamtx /usr/local/bin/mediamtx
 
-
-# ── 3. Copy Next.js build output ──────────────────────────────────────────────
-# In Next.js standalone mode, server.js is the entrypoint. 
-# It expects 'public' and '.next/static' to be in the same directory.
+# ── 4. Copy Next.js build output ──────────────────────────────────────────────
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# ── 4. Copy application settings and scripts ──────────────────────────────────
-# Create directories for persistent data and set correct permissions
+# ── 5. Copy application settings and scripts ──────────────────────────────────
 RUN mkdir -p /app/public/downloads /app/settings \
     && chown -R nextjs:nodejs /app \
     && chmod -R 775 /app/public/downloads /app/settings
@@ -217,20 +143,13 @@ COPY --chown=nextjs:nodejs settings.json     ./settings/settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js
 COPY --chown=nextjs:nodejs mediamtx.yml     ./mediamtx.yml
 
-# We do not switch to USER nextjs here.
-# The container must start as root to handle dynamic GID mapping for /dev/dri.
-# docker-entrypoint.sh will drop privileges to nextjs using gosu.
-
 # Expose Next.js port
 EXPOSE 3000
 
 # Expose MediaMTX / RTMP / HLS ports
-# 8554 = RTSP, 1935 = RTMP, 8888 = HLS (MediaMTX defaults)
 EXPOSE 8554 1935 8888 8000
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
-# Use a startup script (created below via COPY) so we can start both
-# the Next.js server and MediaMTX as background processes.
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 
