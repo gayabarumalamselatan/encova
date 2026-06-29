@@ -120,7 +120,7 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
         // Step 8: Test Encode for QSV
         console.log(`[HWACCEL] QSV pre-checks passed. Running test encode.`);
         try {
-          await execAsync("ffmpeg -f lavfi -i testsrc=size=640x360:rate=30 -t 1 -c:v h264_qsv -f null -");
+          await execAsync("ffmpeg -hide_banner -init_hw_device qsv=hw:/dev/dri/renderD128 -f lavfi -i testsrc=size=1280x720:rate=25 -c:v h264_qsv -look_ahead 0 -low_power 1 -t 1 -f null -");
           caps.qsv.functional = true;
           caps.vaapi.functional = true; // Assuming vaapi works if QSV works
           console.log(`[HWACCEL] QSV Validation PASSED`);
