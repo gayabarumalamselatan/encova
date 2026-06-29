@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     console.log(`- Audio Codec: ${audioCodec}, Audio Bitrate: ${audioBitrate}`);
 
     // Ensure output directories exist
-    const videosDir = path.join(process.cwd(), "public", "videos");
+    const videosDir = process.env.VIDEO_STORAGE_PATH || "/home/videos";
     if (!existsSync(videosDir)) {
       await mkdir(videosDir, { recursive: true });
     }
@@ -165,9 +165,8 @@ export async function POST(req: Request) {
       filename: file.name,
       originalSize,
       compressedSize,
-      // The videos are in public/videos, which is served statically by Next.js at /videos/
-      downloadUrl: `/videos/${compressedFilename}`,
-      originalUrl: `/videos/${originalFilename}`,
+      downloadUrl: `/api/videos/${compressedFilename}`,
+      originalUrl: `/api/videos/${originalFilename}`,
     });
 
   } catch (err: any) {

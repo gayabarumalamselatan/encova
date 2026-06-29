@@ -135,9 +135,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # ── 5. Copy application settings and scripts ──────────────────────────────────
-RUN mkdir -p /app/public/downloads /app/settings \
-    && chown -R nextjs:nodejs /app \
-    && chmod -R 775 /app/public/downloads /app/settings
+ENV VIDEO_STORAGE_PATH=/home/videos
+RUN mkdir -p /app/public/downloads /app/settings $VIDEO_STORAGE_PATH \
+    && chown -R nextjs:nodejs /app $VIDEO_STORAGE_PATH \
+    && chmod -R 775 /app/public/downloads /app/settings $VIDEO_STORAGE_PATH
 
 COPY --chown=nextjs:nodejs settings.json     ./settings/settings.json
 COPY --chown=nextjs:nodejs rtmp-server.js    ./rtmp-server.js

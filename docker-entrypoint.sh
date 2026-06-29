@@ -93,6 +93,11 @@ echo "[check] MediaMTX     : $(gosu nextjs mediamtx --version 2>/dev/null || ech
 # Ensure application files are owned by nextjs in case mounted volumes changed permissions
 chown -R nextjs:nodejs /app/public/downloads /app/settings 2>/dev/null || true
 
+VIDEO_DIR="${VIDEO_STORAGE_PATH:-/home/videos}"
+mkdir -p "$VIDEO_DIR"
+chown -R nextjs:nodejs "$VIDEO_DIR" 2>/dev/null || true
+
+
 # ── Start MediaMTX (RTSP/RTMP/HLS server) in the background ──────────────────
 if command -v mediamtx > /dev/null 2>&1; then
     echo "[start] Starting MediaMTX with /app/mediamtx.yml..."
