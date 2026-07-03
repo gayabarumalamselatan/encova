@@ -6,7 +6,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   login: (session: Session) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (modulePath: string) => boolean;
 }
 
@@ -39,10 +39,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("encova_session", JSON.stringify(newSession));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error", e);
+    }
     setSession(null);
     localStorage.removeItem("encova_session");
     router.push("/login");
+    router.refresh(); // Important: refresh router so middleware notices cookie is gone if needed
   };
 
   const hasPermission = (modulePath: string) => {

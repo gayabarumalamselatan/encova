@@ -35,27 +35,21 @@
       "type": "rtsp",
       "url": "rtsp://127.0.0.1:8554/live/stream",
       "enabled": true,
-      "cameraMappings": [
-        1
-      ]
+      "cameraMappings": [1]
     },
     {
       "id": 2,
       "type": "rtsp",
       "url": "rtsp://127.0.0.1:8554/live/stream2",
       "enabled": false,
-      "cameraMappings": [
-        2
-      ]
+      "cameraMappings": [2]
     },
     {
       "id": 3,
       "type": "rtsp",
       "url": "rtsp://127.0.0.1:8554/live/stream3",
       "enabled": false,
-      "cameraMappings": [
-        3
-      ]
+      "cameraMappings": [3]
     }
   ],
   "streamSettings": {
@@ -104,6 +98,10 @@
     {
       "id": "api-docs",
       "name": "API Documentation"
+    },
+    {
+      "id": "video-pooler",
+      "name": "Video Pooler"
     }
   ],
   "accounts": [
@@ -113,11 +111,9 @@
       "password": "admin123",
       "role": "admin",
       "enabled": true,
-      "modules": [
-        "all"
-      ],
+      "modules": ["all"],
       "createdAt": "2026-06-15T05:02:42.036Z",
-      "updatedAt": "2026-06-15T05:02:42.036Z"
+      "updatedAt": "2026-06-30T08:58:14.021Z"
     },
     {
       "id": "41fb9be8-7ad0-4f63-9341-da527e351d4b",
@@ -125,10 +121,7 @@
       "password": "cctv",
       "role": "user",
       "enabled": true,
-      "modules": [
-        "cctv-encode",
-        "video-compress"
-      ],
+      "modules": ["cctv-encode", "video-compress"],
       "createdAt": "2026-06-15T05:03:33.342Z",
       "updatedAt": "2026-06-15T05:09:53.033Z"
     }

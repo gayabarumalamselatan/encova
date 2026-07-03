@@ -62,6 +62,15 @@ const EncovaLandingPage = () => {
       tag: "Developer",
     },
     {
+      id: "video-pooler",
+      title: "Video Pooler",
+      description:
+        "Compress video files with industry standards in one platform.",
+      href: process.env.NEXT_PUBLIC_VIDEO_POOLER_BASE_URL || "#",
+      icon: <Video className="h-8 w-8 text-primary" />,
+      tag: "Optimization",
+    },
+    {
       id: "accounts",
       title: "Account Management",
       description: "Manage system users, roles, and module permissions.",

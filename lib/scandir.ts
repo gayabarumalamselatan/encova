@@ -17,7 +17,7 @@ export async function ScanDirectory(dir: string): Promise<{
     items = await fs.readdir(dir, { withFileTypes: true });
   } catch (err) {
     // Handle missing directories gracefully
-    return { totalSize, latestFile, latestMtime };
+    return { totalSize, latestFile, latestMtime, fileCount };
   }
 
   for (const item of items) {
@@ -38,7 +38,11 @@ export async function ScanDirectory(dir: string): Promise<{
       }
     } else {
       // Only consider recording files (.mp4) and ignore temp files
-      if (!item.name.endsWith(".mp4") || item.name.includes(".tmp") || item.name.includes(".temp")) {
+      if (
+        !item.name.endsWith(".mp4") ||
+        item.name.includes(".tmp") ||
+        item.name.includes(".temp")
+      ) {
         continue;
       }
 

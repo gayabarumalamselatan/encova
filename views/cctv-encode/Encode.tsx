@@ -229,7 +229,7 @@ export default function Encode() {
   };
 
   const addCamera = () => {
-    if (cameras.length >= 10) return;
+    // if (cameras.length >= 10) return;
     const newId = Math.max(...cameras.map((c) => c.id), 0) + 1;
     setCameras([
       ...cameras,
@@ -677,16 +677,16 @@ Do you want to start encoding?`;
                       <h3 className="text-lg font-semibold">
                         Connected Cameras ({cameras.length}/10)
                       </h3>
-                      {cameras.length < 10 && (
-                        <Button
-                          onClick={addCamera}
-                          size="sm"
-                          className="flex items-center gap-2 hover:cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4" />
-                          Add Camera
-                        </Button>
-                      )}
+                      {/* {cameras.length < 10 && ( */}
+                      <Button
+                        onClick={addCamera}
+                        size="sm"
+                        className="flex items-center gap-2 hover:cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Camera
+                      </Button>
+                      {/* )} */}
                     </div>
 
                     <div className="space-y-4">
@@ -1021,37 +1021,62 @@ Do you want to start encoding?`;
                       {hwCaps && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
                           {[
-                            { key: 'qsv', name: 'Intel Quick Sync' },
-                            { key: 'nvenc', name: 'NVIDIA NVENC' },
-                            { key: 'vaapi', name: 'VAAPI' },
-                            { key: 'amf', name: 'AMD AMF' },
-                          ].map(hw => {
+                            { key: "qsv", name: "Intel Quick Sync" },
+                            { key: "nvenc", name: "NVIDIA NVENC" },
+                            { key: "vaapi", name: "VAAPI" },
+                            { key: "amf", name: "AMD AMF" },
+                          ].map((hw) => {
                             const status = hwCaps[hw.key];
                             if (!status) return null;
                             const isAvail = status.functional;
                             return (
-                              <div key={hw.key} className="flex flex-col p-3 border rounded bg-white gap-2">
+                              <div
+                                key={hw.key}
+                                className="flex flex-col p-3 border rounded bg-white gap-2"
+                              >
                                 <div className="flex items-center gap-2">
                                   {isAvail ? (
                                     <CheckCircle className="w-4 h-4 text-green-500" />
                                   ) : (
                                     <AlertCircle className="w-4 h-4 text-gray-400" />
                                   )}
-                                  <span className={`font-semibold ${isAvail ? "text-green-700" : "text-gray-500"}`}>
-                                    {hw.name} {isAvail ? "Available" : "Unavailable"}
+                                  <span
+                                    className={`font-semibold ${isAvail ? "text-green-700" : "text-gray-500"}`}
+                                  >
+                                    {hw.name}{" "}
+                                    {isAvail ? "Available" : "Unavailable"}
                                   </span>
                                 </div>
                                 <div className="text-xs text-gray-600 grid grid-cols-[120px_1fr] gap-y-1">
                                   <span>Encoder Found:</span>
-                                  <span>{status.encoderPresent ? "Yes" : "No"}</span>
+                                  <span>
+                                    {status.encoderPresent ? "Yes" : "No"}
+                                  </span>
                                   <span>Hardware Detected:</span>
-                                  <span>{status.devicePresent ? "Yes" : "No"}</span>
+                                  <span>
+                                    {status.devicePresent ? "Yes" : "No"}
+                                  </span>
                                   <span>Validation Test:</span>
-                                  <span className={status.functional ? "text-green-600" : "text-red-600"}>{status.functional ? "Passed" : "Failed"}</span>
+                                  <span
+                                    className={
+                                      status.functional
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {status.functional ? "Passed" : "Failed"}
+                                  </span>
                                   {!status.functional && status.reason && (
                                     <>
-                                      <span className="text-red-500">Reason:</span>
-                                      <span className="text-red-500 truncate" title={status.reason}>{status.reason}</span>
+                                      <span className="text-red-500">
+                                        Reason:
+                                      </span>
+                                      <span
+                                        className="text-red-500 truncate"
+                                        title={status.reason}
+                                      >
+                                        {status.reason}
+                                      </span>
                                     </>
                                   )}
                                 </div>
