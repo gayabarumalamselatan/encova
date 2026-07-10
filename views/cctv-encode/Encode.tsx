@@ -125,7 +125,7 @@ export default function Encode() {
     channels: "2",
     audioFilter: false,
     noiseReduction: false,
-    encodingMode: "auto",
+    hardwareEncoder: "software",
   });
 
   const [hwCaps, setHwCaps] = useState<any>(null);
@@ -368,11 +368,28 @@ export default function Encode() {
       streamSettings.outputResolution === "1920x1080" &&
       streamSettings.bitrate === "128k"
     ) {
-      // Just a warning, not blocking
       setLogs((prev) => [
         ...prev,
         `[${new Date().toLocaleString()}] Warning: Selected bitrate (128 kbps) may produce poor image quality at 1080p resolution.`,
       ]);
+    }
+
+    if (
+      streamSettings.hardwareEncoder &&
+      streamSettings.hardwareEncoder !== "software" &&
+      hwCaps
+    ) {
+      const hw = hwCaps[streamSettings.hardwareEncoder];
+      if (!hw || !hw.functional) {
+        alert(
+          "Selected hardware encoder is unavailable on this system. Please choose another encoder or use Software (CPU).",
+        );
+        setLogs((prev) => [
+          ...prev,
+          `[${new Date().toLocaleString()}] Error: Selected hardware encoder is unavailable on this system. Please choose another encoder or use Software (CPU).`,
+        ]);
+        return;
+      }
     }
 
     const summary = `Encoder Summary:
@@ -575,6 +592,33 @@ Do you want to start encoding?`;
       handleStart();
     }
   }, [initialized, autostart]);
+
+  useEffect(() => {
+    if (initialized && hwCaps) {
+      const availableEncoders: any[] = [];
+      if (hwCaps.qsv?.functional) availableEncoders.push("qsv");
+      if (hwCaps.nvenc?.functional) availableEncoders.push("nvenc");
+      if (hwCaps.vaapi?.functional) availableEncoders.push("vaapi");
+      if (hwCaps.amf?.functional) availableEncoders.push("amf");
+
+      if (
+        streamSettings.hardwareEncoder === "software" ||
+        !streamSettings.hardwareEncoder
+      ) {
+        if (availableEncoders.length === 1) {
+          setStreamSettings((prev: any) => ({
+            ...prev,
+            hardwareEncoder: availableEncoders[0],
+          }));
+        } else if (availableEncoders.length === 0) {
+          setStreamSettings((prev: any) => ({
+            ...prev,
+            hardwareEncoder: "software",
+          }));
+        }
+      }
+    }
+  }, [initialized, hwCaps]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -947,13 +991,15 @@ Do you want to start encoding?`;
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="encoding-mode">Encoding Mode</Label>
+                        <Label htmlFor="hardware-encoder">
+                          Hardware Encoder
+                        </Label>
                         <Select
-                          value={streamSettings.encodingMode}
+                          value={streamSettings.hardwareEncoder || "software"}
                           onValueChange={(val) =>
                             setStreamSettings({
                               ...streamSettings,
-                              encodingMode: val,
+                              hardwareEncoder: val,
                             })
                           }
                         >
@@ -961,15 +1007,25 @@ Do you want to start encoding?`;
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="auto">
-                              Auto (Recommended)
-                            </SelectItem>
-                            <SelectItem value="hardware">
-                              Hardware Accelerated
-                            </SelectItem>
                             <SelectItem value="software">
-                              Software Encoding
+                              Software (CPU)
                             </SelectItem>
+                            {hwCaps?.qsv?.functional && (
+                              <SelectItem value="qsv">
+                                Intel Quick Sync (QSV)
+                              </SelectItem>
+                            )}
+                            {hwCaps?.nvenc?.functional && (
+                              <SelectItem value="nvenc">
+                                NVIDIA NVENC
+                              </SelectItem>
+                            )}
+                            {hwCaps?.vaapi?.functional && (
+                              <SelectItem value="vaapi">AMD VAAPI</SelectItem>
+                            )}
+                            {hwCaps?.amf?.functional && (
+                              <SelectItem value="amf">AMD AMF</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>

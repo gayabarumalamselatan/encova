@@ -35,12 +35,12 @@ export class FFmpegProcess {
     if (this.process) throw new Error("Already running");
 
     const args: string[] = [];
-    const encodingMode = streamSettings?.encodingMode || "auto";
-    const actualEncoder = resolveEncoder(streamSettings?.videoCodec || "h264", encodingMode);
+    const hardwareEncoder = streamSettings?.hardwareEncoder || "software";
+    const actualEncoder = resolveEncoder(streamSettings?.videoCodec || "h264", hardwareEncoder);
     this.actualEncoder = actualEncoder;
     
     let preset = streamSettings?.preset || "veryfast";
-    const isQsvEncoder = ["h264_qsv", "hevc_qsv", "av1_qsv"].includes(actualEncoder);
+    const isQsvEncoder = hardwareEncoder === "qsv";
     if (isQsvEncoder) {
       preset = "none";
     }
@@ -62,12 +62,15 @@ export class FFmpegProcess {
     }
 
     // Hardware acceleration arguments before -i
-    if (actualEncoder.includes("qsv")) {
+    if (hardwareEncoder === "qsv") {
       args.push("-hwaccel", "qsv");
       args.push("-hwaccel_output_format", "qsv");
-    } else if (actualEncoder.includes("nvenc")) {
+    } else if (hardwareEncoder === "nvenc") {
       args.push("-hwaccel", "cuda");
-    } else if (actualEncoder.includes("vaapi")) {
+      args.push("-hwaccel_output_format", "cuda");
+    } else if (hardwareEncoder === "vaapi") {
+      args.push("-hwaccel", "vaapi");
+      args.push("-hwaccel_output_format", "vaapi");
       args.push("-vaapi_device", "/dev/dri/renderD128");
     }
 
@@ -97,12 +100,18 @@ export class FFmpegProcess {
     if (streamSettings?.outputResolution && streamSettings.outputResolution !== "same") {
       const res = streamSettings.outputResolution;
       const [w, h] = res.split("x");
-      if (isQsvEncoder && w && h) {
+      if (hardwareEncoder === "qsv" && w && h) {
         resArgs.push("-vf", `vpp_qsv=w=${w}:h=${h}`);
         resizeLog = `QSV VPP\nGenerated Filter: vpp_qsv=w=${w}:h=${h}`;
+      } else if (hardwareEncoder === "nvenc" && w && h) {
+        resArgs.push("-vf", `scale_cuda=${w}:${h}`);
+        resizeLog = `CUDA Scale\nGenerated Filter: scale_cuda=${w}:${h}`;
+      } else if (hardwareEncoder === "vaapi" && w && h) {
+        resArgs.push("-vf", `scale_vaapi=w=${w}:h=${h}`);
+        resizeLog = `VAAPI Scale\nGenerated Filter: scale_vaapi=w=${w}:h=${h}`;
       } else {
-        resArgs.push("-s", res);
-        resizeLog = `Software (-s ${res})`;
+        resArgs.push("-vf", `scale=${res.replace("x", ":")}`);
+        resizeLog = `Software Filter\nGenerated Filter: scale=${res.replace("x", ":")}`;
       }
     }
 

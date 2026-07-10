@@ -170,24 +170,22 @@ export async function detectHardwareCapabilities(force = false): Promise<HwAccel
   return caps;
 }
 
-export function resolveEncoder(codec: string, mode: string = "auto"): string {
+export function resolveEncoder(codec: string, hardwareEncoder: string = "software"): string {
   const isH265 = codec === "h265";
   
-  if (mode === "software") {
-    return isH265 ? "libx265" : "libx264";
+  switch (hardwareEncoder) {
+    case "qsv":
+      return isH265 ? "hevc_qsv" : "h264_qsv";
+    case "nvenc":
+      return isH265 ? "hevc_nvenc" : "h264_nvenc";
+    case "vaapi":
+      return isH265 ? "hevc_vaapi" : "h264_vaapi";
+    case "amf":
+      return isH265 ? "hevc_amf" : "h264_amf";
+    case "software":
+    default:
+      return isH265 ? "libx265" : "libx264";
   }
-
-  if (cachedCapabilities) {
-    const { qsv, nvenc, vaapi, amf } = cachedCapabilities;
-    
-    // Priority: qsv -> nvenc -> vaapi -> amf -> software
-    if (qsv.functional) return isH265 ? "hevc_qsv" : "h264_qsv";
-    if (nvenc.functional) return isH265 ? "hevc_nvenc" : "h264_nvenc";
-    if (vaapi.functional) return isH265 ? "hevc_vaapi" : "h264_vaapi";
-    if (amf.functional) return isH265 ? "hevc_amf" : "h264_amf";
-  }
-
-  return isH265 ? "libx265" : "libx264";
 }
 
 // Auto-run on startup
