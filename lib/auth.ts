@@ -32,7 +32,7 @@ export async function setToken(token: string) {
     name: COOKIE_NAME,
     value: token,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NEXT_COOKIE_SECURE === "true",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24, // 24 hours
