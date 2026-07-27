@@ -29,7 +29,7 @@ export const useLogin = () => {
       }
 
       login(data);
-      router.push("/"); // Redirect to homepage after successful login
+      router.push("/"); // Redirect to welcoming homepage after successful login
     } catch (err: any) {
       setError(err.message);
     } finally {

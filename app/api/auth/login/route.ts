@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readSettings } from "@/lib/settingsManager";
 import { Account } from "@/lib/types/auth";
 import { signToken, setToken } from "@/lib/auth";
+import { decrypt } from "@/lib/security/encryption";
 
 export async function POST(req: Request) {
   try {
@@ -34,7 +35,9 @@ export async function POST(req: Request) {
         (a: Account) => a.username === username,
       );
 
-      if (!account || account.password !== password) {
+      const decryptedPassword = account ? decrypt(account.password) : null;
+
+      if (!account || decryptedPassword !== password) {
         return NextResponse.json(
           { error: "Invalid credentials" },
           { status: 401 },

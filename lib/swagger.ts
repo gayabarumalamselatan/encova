@@ -238,9 +238,114 @@ const swaggerSpec = {
         },
       },
     },
+
+    "/api/dashboard/all": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get full aggregated telemetry payload",
+        description: "Returns latest system, GPU, encoding, MediaMTX, storage, network, camera status, capacity, and historical metrics.",
+        parameters: [
+          { name: "from", in: "query", schema: { type: "string" }, description: "ISO start timestamp" },
+          { name: "to", in: "query", schema: { type: "string" }, description: "ISO end timestamp" },
+        ],
+        responses: {
+          200: { description: "Aggregated telemetry payload" },
+          401: { description: "Unauthorized" },
+          403: { description: "Forbidden - Admin required" },
+        },
+      },
+    },
+
+    "/api/dashboard/system": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get real-time system metrics (CPU, RAM, Disk, Uptime)",
+        responses: { 200: { description: "System metrics" } },
+      },
+    },
+
+    "/api/dashboard/cameras": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get camera status summary and camera table",
+        parameters: [
+          { name: "status", in: "query", schema: { type: "string" }, description: "online | offline | warning | disabled" },
+          { name: "codec", in: "query", schema: { type: "string" }, description: "h264 | h265" },
+        ],
+        responses: { 200: { description: "Camera telemetry" } },
+      },
+    },
+
+    "/api/dashboard/encoding": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get encoding performance metrics and FPS/speed time-series",
+        responses: { 200: { description: "Encoding performance metrics" } },
+      },
+    },
+
+    "/api/dashboard/hardware": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get hardware utilization (CPU cores, GPU NVENC/NVDEC/VRAM)",
+        responses: { 200: { description: "Hardware telemetry" } },
+      },
+    },
+
+    "/api/dashboard/mediamtx": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get MediaMTX stream publishers, readers, and bandwidth",
+        responses: { 200: { description: "MediaMTX metrics" } },
+      },
+    },
+
+    "/api/dashboard/network": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get network interface throughput and traffic statistics",
+        responses: { 200: { description: "Network metrics" } },
+      },
+    },
+
+    "/api/dashboard/storage": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get storage utilization and NAS connection health",
+        responses: { 200: { description: "Storage metrics" } },
+      },
+    },
+
+    "/api/dashboard/processes": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get active FFmpeg process table with runtime logs",
+        responses: { 200: { description: "FFmpeg process table" } },
+      },
+    },
+
+    "/api/dashboard/alerts": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get active platform alerts feed",
+        responses: { 200: { description: "Platform alerts" } },
+      },
+    },
+
+    "/api/dashboard/capacity": {
+      get: {
+        tags: ["Monitoring Dashboard"],
+        summary: "Get capacity estimation and stream headroom",
+        responses: { 200: { description: "Capacity metrics" } },
+      },
+    },
   },
 
   tags: [
+    {
+      name: "Monitoring Dashboard",
+      description: "Real-time enterprise NOC monitoring telemetry APIs",
+    },
     {
       name: "General Compression",
       description: "Single-file endpoint for PDF, KML, KMZ",

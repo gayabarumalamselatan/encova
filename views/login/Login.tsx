@@ -29,7 +29,7 @@ const Login = () => {
                 ASISGO ENCOVA
               </h1>
               <p className="text-sm text-gray-600 max-w-2xl mx-auto">
-                Sign in to your account
+                Masuk ke akun anda
               </p>
             </div>
           </div>
@@ -39,10 +39,10 @@ const Login = () => {
         <Card className="border-border/50 bg-white/80 backdrop-blur-sm shadow-xl">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              Administrator Login
+              Login
             </CardTitle>
             <CardDescription className="text-sm leading-relaxed">
-              Enter your credentials to access the secure dashboard.
+              Masukkan kredensial Anda untuk mengakses dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -62,7 +62,7 @@ const Login = () => {
               </div>
               <Button type="submit" className="w-full mt-6" disabled={loading}>
                 <Lock className="w-4 h-4 mr-2" />
-                {loading ? "Logging in..." : "Login"}
+                {loading ? "Memuat..." : "Masuk"}
               </Button>
             </form>
           </CardContent>

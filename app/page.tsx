@@ -16,70 +16,15 @@ import {
   BookOpen,
   Users,
   LogOut,
+  LayoutDashboard,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { allFeatures } from "@/lib/module.list";
 
 const EncovaLandingPage = () => {
   const { hasPermission, session, logout } = useAuth();
-
-  const allFeatures = [
-    {
-      id: "cctv-encode",
-      title: "CCTV Encode",
-      description:
-        "Configure and optimize CCTV encoding parameters for efficient long-term storage.",
-      href: "/cctv-encode",
-      icon: <Video className="h-8 w-8 text-primary" />,
-      tag: "Video Processing",
-    },
-    {
-      id: "file-compress",
-      title: "File Compress",
-      description:
-        "Compress various file formats efficiently while maintaining original structure and usability.",
-      href: "/file-compress",
-      icon: <FileArchive className="h-8 w-8 text-primary" />,
-      tag: "Optimization",
-    },
-    {
-      id: "video-compress",
-      title: "Video Compression",
-      description:
-        "Compress video files with industry standards in one platform.",
-      href: "/video-compress",
-      icon: <Video className="h-8 w-8 text-primary" />,
-      tag: "Optimization",
-    },
-    {
-      id: "api-docs",
-      title: "API Documentation",
-      description:
-        "Explore all compression API endpoints with live Try-it-out powered by Swagger UI.",
-      href: "/api-docs",
-      icon: <BookOpen className="h-8 w-8 text-primary" />,
-      tag: "Developer",
-    },
-    {
-      id: "video-pooler",
-      title: "Video Pooler",
-      description:
-        "Compress video files with industry standards in one platform.",
-      href: process.env.NEXT_PUBLIC_VIDEO_POOLER_BASE_URL || "#",
-      icon: <Video className="h-8 w-8 text-primary" />,
-      tag: "Optimization",
-    },
-    {
-      id: "accounts",
-      title: "Account Management",
-      description: "Manage system users, roles, and module permissions.",
-      href: "/accounts",
-      icon: <Users className="h-8 w-8 text-primary" />,
-      tag: "Administration",
-      adminOnly: true,
-    },
-  ];
 
   const visibleFeatures = allFeatures.filter((feature) => {
     if (feature.adminOnly && session?.user.role !== "admin") return false;
@@ -96,7 +41,7 @@ const EncovaLandingPage = () => {
             onClick={logout}
             className="flex items-center gap-2 hover:cursor-pointer"
           >
-            <LogOut className="w-4 h-4" /> Logout
+            <LogOut className="w-4 h-4" /> Keluar
           </Button>
         </div>
 
@@ -110,13 +55,13 @@ const EncovaLandingPage = () => {
                   ASISGO ENCOVA
                 </h1>
                 <p className="text-sm text-gray-600 max-w-2xl mx-auto">
-                  Integrated media management solution. Configure video encoding
-                  parameters and compress files with industry standards in one
+                  Solusi manajemen media terintegrasi. Atur parameter encoding
+                  video dan kompres file sesuai standar industri dalam satu
                   platform.
                 </p>
                 {session?.user && (
                   <p className="text-sm font-medium text-blue-600">
-                    Welcome back, {session.user.username}
+                    Selamat Datang, {session.user.username}
                   </p>
                 )}
               </div>
@@ -129,7 +74,7 @@ const EncovaLandingPage = () => {
               <Link href={feature.href} key={index} className="group">
                 <Card className="h-full border-border/50 bg-white/80 backdrop-blur-sm transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1 group-hover:border-primary/50">
                   <CardHeader>
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 group-hover:text-white transition-colors duration-300">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 transition-colors duration-300">
                       {feature.icon}
                     </div>
                     <div className="space-y-1">
@@ -146,7 +91,7 @@ const EncovaLandingPage = () => {
                       {feature.description}
                     </CardDescription>
                     <div className="flex items-center text-sm font-semibold text-primary">
-                      Open Feature{" "}
+                      Buka Fitur{" "}
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </CardContent>

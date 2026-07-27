@@ -27,6 +27,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { generateId } from "@/lib/utils";
+import HeaderBar from "@/components/layout/HeaderBar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Level = "low" | "medium" | "high";
@@ -363,31 +364,9 @@ export default function Compress() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Back button */}
-        <Button
-          variant="outline"
-          className="hover:cursor-pointer"
-          onClick={() => window.history.back()}
-        >
-          <ArrowLeftIcon className="w-4 h-4 mr-1" />
-          Back to Home
-        </Button>
-
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <img src="images/logo.png" alt="Logo" className="w-16" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              ASISGO File Compress
-            </h1>
-            <p className="text-gray-600 mt-0.5">
-              Compress PDF, KML, KMZ, DOCX and XLSX files — processed locally,
-              no data sent to third parties
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <HeaderBar />
+      <div className="max-w-4xl w-full mx-auto space-y-6 p-6">
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* ── Left / main column ── */}

@@ -14,7 +14,11 @@ export async function POST(req: Request) {
       console.log("mount nas done");
     }
     console.log("run ffmpeg");
-    ffmpegManager.start(cameras, outputs, nasConfig, streamSettings);
+    const { decryptRtspUrl } = await import("@/lib/security/encryption");
+    const runtimeCameras = Array.isArray(cameras)
+      ? cameras.map((c: any) => ({ ...c, url: decryptRtspUrl(c.url) }))
+      : cameras;
+    ffmpegManager.start(runtimeCameras, outputs, nasConfig, streamSettings);
     console.log("run ffmpeg done");
     return NextResponse.json({
       success: true,

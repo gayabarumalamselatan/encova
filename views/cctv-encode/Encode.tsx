@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { log } from "console";
 import { EncoderStatus } from "@/lib/types/ffmpeg";
+import CameraFormCard from "@/components/cctv/CameraFormCard";
+import HeaderBar from "@/components/layout/HeaderBar";
 
 const OUTPUT_DEFAULTS: Record<string, string> = {
   rtmp: "rtmp://127.0.0.1/live/stream",
@@ -621,29 +623,13 @@ Do you want to start encoding?`;
   }, [initialized, hwCaps]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <Button
-          variant="outline"
-          className="hover:cursor-pointer"
-          onClick={() => window.history.back()}
-        >
-          <ArrowLeftIcon />
-          Back to Home
-        </Button>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-row gap-3">
-            <img src="images/logo.png" alt="Logo" className="w-20" />
-            <div className="flex flex-col justify-center">
-              <h1 className="text-3xl font-bold text-gray-900">
-                ASISGO Video Encoding
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Configure your video encoding parameters
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <HeaderBar />
+      <div className="max-w-7xl w-full mx-auto space-y-6 p-6">
+        <div className="flex items-center justify-between bg-white p-4 rounded-xl border shadow-xs">
+          <h2 className="text-xl font-bold text-gray-900">
+            ASISGO Video Encoding Configuration
+          </h2>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -734,160 +720,20 @@ Do you want to start encoding?`;
                     </div>
 
                     <div className="space-y-4">
-                      {cameras.map((camera, index) => (
-                        <Card key={camera.id} className="border-2">
-                          <CardContent className="pt-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={camera.enabled}
-                                  onCheckedChange={(checked) =>
-                                    updateCamera(camera.id, "enabled", checked)
-                                  }
-                                />
-                                <Label className="font-medium">
-                                  {camera.name}
-                                </Label>
-                              </div>
-                              {cameras.length > 1 && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeCamera(camera.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-4 mb-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`camera-name-${camera.id}`}>
-                                  Camera Name
-                                </Label>
-                                <Input
-                                  id={`camera-name-${camera.id}`}
-                                  value={camera.name}
-                                  onChange={(e) =>
-                                    updateCamera(
-                                      camera.id,
-                                      "name",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="Camera 1"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`source-type-${camera.id}`}>
-                                  Source Type
-                                </Label>
-                                <Select
-                                  disabled
-                                  value={camera.sourceType}
-                                  onValueChange={(value) =>
-                                    updateCamera(camera.id, "sourceType", value)
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="rtsp">
-                                      RTSP Stream
-                                    </SelectItem>
-                                    <SelectItem value="usb">
-                                      USB Camera
-                                    </SelectItem>
-                                    <SelectItem value="webcam">
-                                      Webcam
-                                    </SelectItem>
-                                    <SelectItem value="onvif">
-                                      ONVIF Camera
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-4 mb-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`camera-url-${camera.id}`}>
-                                  URL/Device Path
-                                </Label>
-                                <Input
-                                  id={`camera-url-${camera.id}`}
-                                  value={camera.url}
-                                  onChange={(e) =>
-                                    updateCamera(
-                                      camera.id,
-                                      "url",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder={
-                                    camera.sourceType === "rtsp"
-                                      ? "rtsp://username:password@192.168.x.x:554/ch1/0"
-                                      : "/dev/video0"
-                                  }
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`camera-res-${camera.id}`}>
-                                  Resolution
-                                </Label>
-                                <Select
-                                  value={camera.resolution}
-                                  onValueChange={(value) =>
-                                    updateCamera(camera.id, "resolution", value)
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="auto">
-                                      Auto Detect
-                                    </SelectItem>
-                                    <SelectItem value="1920x1080">
-                                      1920x1080 (1080p)
-                                    </SelectItem>
-                                    <SelectItem value="1280x720">
-                                      1280x720 (720p)
-                                    </SelectItem>
-                                    <SelectItem value="640x480">
-                                      640x480 (480p)
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor={`camera-fps-${camera.id}`}>
-                                Frame Rate (FPS)
-                              </Label>
-                              <Select
-                                value={camera.fps}
-                                onValueChange={(value) =>
-                                  updateCamera(camera.id, "fps", value)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="15">15 FPS</SelectItem>
-                                  <SelectItem value="24">24 FPS</SelectItem>
-                                  <SelectItem value="25">25 FPS</SelectItem>
-                                  <SelectItem value="30">30 FPS</SelectItem>
-                                  <SelectItem value="60">60 FPS</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </CardContent>
-                        </Card>
+                      {cameras.map((camera) => (
+                        <CameraFormCard
+                          key={camera.id}
+                          camera={camera}
+                          canRemove={cameras.length > 1}
+                          onUpdate={(id, updatedFields) => {
+                            setCameras((prev) =>
+                              prev.map((c) =>
+                                c.id === id ? { ...c, ...updatedFields } : c
+                              )
+                            );
+                          }}
+                          onRemove={(id) => removeCamera(id)}
+                        />
                       ))}
                     </div>
                   </CardContent>

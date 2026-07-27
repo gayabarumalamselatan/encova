@@ -5,7 +5,7 @@
       "id": 1,
       "name": "ruang meeting",
       "sourceType": "rtsp",
-      "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch1/0",
+      "url": "rtsp://admin:enc:v1:OsNZGjOmra8zZPvV:jPn2d5QaxfondloQRp5ahA:CFd_Nola1qA@192.168.0.128:554/ch1/0",
       "resolution": "1920x1080",
       "fps": "24",
       "enabled": true
@@ -14,7 +14,7 @@
       "id": 2,
       "name": "lobby",
       "sourceType": "rtsp",
-      "url": "rtsp://admin:abcd1234@192.168.0.128:554/ch2/0",
+      "url": "rtsp://admin:enc:v1:vczeNUmQqqYpbro3:nHeADg0zveU_W3QxsgejIg:S5gwzxRxiDQ@192.168.0.128:554/ch2/0",
       "resolution": "1920x1080",
       "fps": "24",
       "enabled": true
@@ -73,6 +73,10 @@
   },
   "availableModules": [
     {
+      "id": "dashboard",
+      "name": "Monitoring Dashboard"
+    },
+    {
       "id": "cctv-encode",
       "name": "CCTV Encode"
     },
@@ -97,7 +101,7 @@
     {
       "id": "505b39ca-719f-47a1-b4a0-4262659caf2b",
       "username": "admin",
-      "password": "admin123",
+      "password": "enc:v1:BBJdavO4cVn3cd0Q:pS45usWPp94h2FVIVF_tRA:qfQEq69PXZc",
       "role": "admin",
       "enabled": true,
       "modules": [
@@ -109,7 +113,7 @@
     {
       "id": "41fb9be8-7ad0-4f63-9341-da527e351d4b",
       "username": "cctv",
-      "password": "cctv",
+      "password": "enc:v1:GH251Zanxsb62Fs1:0zXxbS8r20PuR5XOWfnJRg:3X7CJA",
       "role": "user",
       "enabled": true,
       "modules": [

@@ -23,6 +23,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import HeaderBar from "@/components/layout/HeaderBar";
 import {
   ArrowLeftIcon,
   CheckCircle,
@@ -500,31 +501,9 @@ export default function VideoCompress() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Back button */}
-        <Button
-          variant="outline"
-          className="hover:cursor-pointer shadow-sm bg-white"
-          onClick={() => window.history.back()}
-        >
-          <ArrowLeftIcon className="w-4 h-4 mr-1.5" />
-          Back to Home
-        </Button>
-
-        {/* Header */}
-        <div className="flex items-center gap-4 bg-white p-6 rounded-xl border shadow-sm">
-          <img src="images/logo.png" alt="Logo" className="w-16" />
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              ASISGO Video Compress
-            </h1>
-            <p className="text-gray-500 mt-1 text-sm sm:text-base font-medium">
-              High-performance video transcoder and compressor. Processed
-              locally ensuring full data privacy.
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <HeaderBar />
+      <div className="max-w-7xl w-full mx-auto space-y-6 p-6">
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* ── Left / main column ── */}

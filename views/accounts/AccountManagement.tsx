@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Account, AvailableModule, Role } from "@/lib/types/auth";
 import { Trash, Edit, Plus, Save, X, Search } from "lucide-react";
+import HeaderBar from "@/components/layout/HeaderBar";
 import router from "next/router";
 
 export default function AccountManagement() {
@@ -128,27 +129,21 @@ export default function AccountManagement() {
 
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
-        <div className="max-w-6xl w-full space-y-6">
+      <div className="min-h-screen w-full bg-gray-50 flex flex-col">
+        <HeaderBar />
+        <div className="flex-1 w-full max-w-7xl mx-auto space-y-6 p-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Account Management
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              Manajemen Akun
             </h1>
             <div className="flex space-x-2">
               <Button
-                variant="outline"
+                variant="default"
                 onClick={handleNew}
                 className="hover:cursor-pointer"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Account
-              </Button>
-              <Button
-                onClick={() => window.history.back()}
-                className="bg-black hover:cursor-pointer"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Back to Homepage
+                Tambah Akun
               </Button>
             </div>
           </div>

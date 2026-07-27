@@ -4,6 +4,7 @@ import path from "path";
 import { NasConfig, nasManager } from "./nas";
 import { EncoderStatus, Camera, Output, StreamSettings } from "./types/ffmpeg";
 import { resolveEncoder } from "./hwaccel";
+import { maskRtspUrl } from "./security/encryption";
 export class FFmpegProcess {
   public process: ChildProcessWithoutNullStreams | null = null;
   public logs: string[] = [];
@@ -217,7 +218,8 @@ export class FFmpegProcess {
 
     this.activeOutputs = validOutputsCount;
 
-    const commandStr = `ffmpeg ${args.join(" ")}`;
+    const maskedArgs = args.map((arg) => maskRtspUrl(arg));
+    const commandStr = `ffmpeg ${maskedArgs.join(" ")}`;
     const hwaccelType = actualEncoder.includes("qsv") ? "qsv" : actualEncoder.includes("nvenc") ? "cuda" : actualEncoder.includes("vaapi") ? "vaapi" : "none";
     const logHeader = `[Camera ${camera.id}] Starting ffmpeg with tee outputs: ${teeOutputs.length}\nSelected Encoder: ${actualEncoder}\nApplied Preset: ${preset}\nHardware Acceleration: ${hwaccelType}\nResize Mode: ${resizeLog}\nGenerated Command:\n${commandStr}`;
     console.log(logHeader);
